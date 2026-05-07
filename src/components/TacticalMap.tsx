@@ -30,7 +30,6 @@ export default function TacticalMap() {
   function handleCellClick(x: number, y: number) {
     const key = `${x},${y}`;
     const unit = unitAtPos.get(key);
-    console.log('[click]', x, y, 'unit:', unit?.characterId, 'side:', unit?.side, 'currentSide:', currentSide, 'hasMoved:', unit?.hasMoved, 'selectedUnitId:', selectedUnitId);
     if (selectedUnitId !== null && reachableSet.has(key)) {
       moveUnit(selectedUnitId, { x, y });
       return;
@@ -127,10 +126,6 @@ export default function TacticalMap() {
               {nations[battle.defenderNationId].name}
             </text>
 
-            {/* [DEBUG] 状態表示 */}
-            <text x={W / 2} y={H + 16} textAnchor="middle" fill="#9ca3af" fontSize={11}>
-              選択中: {selectedUnitId ?? 'なし'} | 移動可能マス: {reachableCells.length}
-            </text>
           </g>
         </svg>
 
