@@ -1,6 +1,7 @@
 import StrategicMap from './components/StrategicMap';
 import TerritoryDetail from './components/TerritoryDetail';
 import TurnControl from './components/TurnControl';
+import GameOverModal from './components/GameOverModal';
 
 export default function App() {
   return (
@@ -39,6 +40,8 @@ export default function App() {
           <TerritoryDetail />
         </div>
       </div>
+
+      <GameOverModal />
     </div>
   );
 }
