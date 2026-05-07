@@ -5,6 +5,7 @@ import TurnControl from './components/TurnControl';
 import GameOverModal from './components/GameOverModal';
 import TacticalControl from './components/TacticalControl';
 import TacticalMap from './components/TacticalMap';
+import BattleLog from './components/BattleLog';
 
 export default function App() {
   const phase = useGameStore((s) => s.phase);
@@ -24,6 +25,7 @@ export default function App() {
       >
         <TacticalControl />
         <TacticalMap />
+        <BattleLog />
       </div>
     );
   }

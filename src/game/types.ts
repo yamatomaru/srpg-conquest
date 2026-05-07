@@ -87,6 +87,14 @@ export interface TacticalMap {
   // MVP では地形なし（全マス平地）
 }
 
+export interface BattleLogEntry {
+  attackerName: string;
+  defenderName: string;
+  damage: number;
+  defeated: boolean;
+  defenderPos: { x: number; y: number };
+}
+
 export interface BattleState {
   attackerNationId: string;
   defenderNationId: string;
@@ -98,6 +106,8 @@ export interface BattleState {
   turnCount: number;
   selectedUnitId: string | null;
   reachableCells: { x: number; y: number }[];
+  attackTargets: string[];            // 選択中ユニットが攻撃可能な敵ID
+  recentLog: BattleLogEntry[];        // 直近の戦闘ログ（最新5件）
   maxTurns: number;
 }
 
