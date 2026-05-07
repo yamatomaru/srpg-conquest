@@ -4,6 +4,7 @@ import { NATIONS } from '../data/nations';
 import { TERRITORIES } from '../data/territories';
 import { CHARACTERS } from '../data/characters';
 import { applyAttackerWins, applyDefenderWins } from './battle';
+import { placeUnits } from './tactical/placement';
 
 const playerNation = Object.values(NATIONS).find((n) => n.isPlayer);
 if (!playerNation) {
@@ -130,7 +131,7 @@ export const useGameStore = create<GameState & GameActions>((set) => ({
         fromTerritoryId: fromId,
         territoryId: toId,
         map: { width: 8, height: 8 },
-        units: [], // Step 2 で placement.ts から生成
+        units: placeUnits(from.garrisonIds, to.garrisonIds, state.characters),
         currentSide: 'attacker',
         turnCount: 0,
         selectedUnitId: null,

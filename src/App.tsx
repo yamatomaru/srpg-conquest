@@ -4,6 +4,7 @@ import TerritoryDetail from './components/TerritoryDetail';
 import TurnControl from './components/TurnControl';
 import GameOverModal from './components/GameOverModal';
 import TacticalControl from './components/TacticalControl';
+import TacticalMap from './components/TacticalMap';
 
 export default function App() {
   const phase = useGameStore((s) => s.phase);
@@ -22,18 +23,7 @@ export default function App() {
         }}
       >
         <TacticalControl />
-        <div
-          style={{
-            flex: 1,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#6b7280',
-            fontSize: 18,
-          }}
-        >
-          戦術マップ（Step 2 で実装）
-        </div>
+        <TacticalMap />
       </div>
     );
   }
