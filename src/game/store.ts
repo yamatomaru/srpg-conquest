@@ -1,9 +1,9 @@
 import { create } from 'zustand';
-import type { GameState, UISelection } from './types';
+import type { BattleState, GameState, Side, UISelection } from './types';
 import { NATIONS } from '../data/nations';
 import { TERRITORIES } from '../data/territories';
 import { CHARACTERS } from '../data/characters';
-import { executeDummyBattle } from './battle';
+import { applyAttackerWins, applyDefenderWins } from './battle';
 
 const playerNation = Object.values(NATIONS).find((n) => n.isPlayer);
 if (!playerNation) {
@@ -31,17 +31,75 @@ const getInitialState = (): GameState => ({
 
 interface GameActions {
   reset: () => void;
+  // 戦略マップ操作
   selectTerritory: (id: string | null) => void;
   startInvasion: (fromId: string) => void;
   cancelInvasion: () => void;
   executeInvasion: (fromId: string, toId: string) => void;
   endPlayerTurn: () => void;
+  // 戦闘フェーズ
+  endBattle: (winnerSide: Side) => void;
+  // 戦術マップ操作（Step 3〜5 で実装）
+  selectUnit: (unitId: string | null) => void;
+  moveUnit: (unitId: string, to: { x: number; y: number }) => void;
+  endTacticalTurn: () => void;
+}
+
+/** 勝者 ID を計算する純粋関数。 */
+function computeWinner(
+  nations: GameState['nations'],
+  currentWinnerId: string | null,
+): string | null {
+  if (currentWinnerId !== null) return currentWinnerId;
+  const player = Object.values(nations).find((n) => n.isPlayer)!;
+  if (player.defeated) {
+    return Object.values(nations).find((n) => !n.isPlayer && !n.defeated)?.id ?? null;
+  }
+  if (Object.values(nations).every((n) => n.isPlayer || n.defeated)) {
+    return player.id;
+  }
+  return null;
+}
+
+/** 戦闘解決して戦略マップに戻る際の状態差分を返す。 */
+function resolveBattle(
+  state: GameState,
+  winnerSide: Side,
+): Partial<GameState> {
+  const { fromTerritoryId, territoryId, attackerNationId } = state.battle!;
+  const result =
+    winnerSide === 'attacker'
+      ? applyAttackerWins(state, fromTerritoryId, territoryId)
+      : applyDefenderWins(state, fromTerritoryId, territoryId);
+
+  const winnerId = computeWinner(result.nations, state.winnerId);
+  const toName = state.territories[territoryId].name;
+  const attackerName = state.nations[attackerNationId].name;
+  const entry =
+    winnerSide === 'attacker'
+      ? `★ ${attackerName}が「${toName}」を占領`
+      : `✕ ${attackerName}の「${toName}」攻略失敗`;
+
+  return {
+    ...result,
+    phase: 'strategic',
+    battle: null,
+    winnerId,
+    ui: {
+      ...state.ui,
+      invasionMode: null,
+      gameOverShown: winnerId !== null,
+      log: [entry, ...state.ui.log].slice(0, 5),
+    },
+  };
 }
 
 export const useGameStore = create<GameState & GameActions>((set) => ({
   ...getInitialState(),
 
   reset: () => set(getInitialState()),
+
+  // ── 戦略マップ操作 ────────────────────────────────
 
   selectTerritory: (id) =>
     set((state) => ({
@@ -58,42 +116,37 @@ export const useGameStore = create<GameState & GameActions>((set) => ({
       ui: { ...state.ui, invasionMode: null },
     })),
 
-  // Sprint 4 で本物の戦闘ロジック（HP/ATK/DEF）に差し替える。
+  // Sprint 3 〜: 戦術マップへ遷移（Sprint 2 のダミー戦闘から差し替え）
   executeInvasion: (fromId, toId) =>
     set((state) => {
       const from = state.territories[fromId];
       const to = state.territories[toId];
-      const attackerCount = from.garrisonIds.length;
-      const defenderCount = to.garrisonIds.length;
       const attackerName = state.nations[from.ownerId].name;
+      const defenderName = state.nations[to.ownerId].name;
 
-      const result = executeDummyBattle(state, fromId, toId);
+      const battle: BattleState = {
+        attackerNationId: from.ownerId,
+        defenderNationId: to.ownerId,
+        fromTerritoryId: fromId,
+        territoryId: toId,
+        map: { width: 8, height: 8 },
+        units: [], // Step 2 で placement.ts から生成
+        currentSide: 'attacker',
+        turnCount: 0,
+        selectedUnitId: null,
+        reachableCells: [],
+        maxTurns: 30,
+      };
 
-      const victory = attackerCount > defenderCount;
-      const entry = victory
-        ? `★ ${attackerName}が「${to.name}」を占領（兵 ${attackerCount} vs ${defenderCount}）`
-        : `✕ ${attackerName}の「${to.name}」侵攻失敗（兵 ${attackerCount} vs ${defenderCount}）`;
-
-      // 戦闘後の即時勝敗チェック
-      const player = Object.values(result.nations).find((n) => n.isPlayer)!;
-      let winnerId = state.winnerId;
-      if (winnerId === null) {
-        if (player.defeated) {
-          winnerId =
-            Object.values(result.nations).find((n) => !n.isPlayer && !n.defeated)
-              ?.id ?? null;
-        } else if (Object.values(result.nations).every((n) => n.isPlayer || n.defeated)) {
-          winnerId = player.id;
-        }
-      }
+      const entry = `⚔ ${attackerName}が${defenderName}の「${to.name}」に侵攻`;
 
       return {
-        ...result,
-        winnerId,
+        phase: 'tactical',
+        battle,
         ui: {
           ...state.ui,
           invasionMode: null,
-          gameOverShown: winnerId !== null,
+          selectedTerritoryId: null,
           log: [entry, ...state.ui.log].slice(0, 5),
         },
       };
@@ -103,17 +156,12 @@ export const useGameStore = create<GameState & GameActions>((set) => ({
     set((state) => {
       if (state.winnerId !== null) return state;
 
-      // AI ターン（Sprint 2: 全国パス）
+      // AI ターン（Sprint 5 まではパス）
 
-      // 全領地の hasActed をリセット
       const newTerritories = Object.fromEntries(
-        Object.entries(state.territories).map(([id, t]) => [
-          id,
-          { ...t, hasActed: false },
-        ]),
+        Object.entries(state.territories).map(([id, t]) => [id, { ...t, hasActed: false }]),
       );
 
-      // 月収入を加算（所有領地の income 合計）
       const incomeByNation: Record<string, number> = {};
       Object.values(newTerritories).forEach((t) => {
         incomeByNation[t.ownerId] = (incomeByNation[t.ownerId] ?? 0) + t.income;
@@ -125,17 +173,8 @@ export const useGameStore = create<GameState & GameActions>((set) => ({
         ]),
       );
 
-      // 勝敗判定
       const player = Object.values(newNations).find((n) => n.isPlayer)!;
-      let winnerId: string | null = null;
-      if (player.defeated) {
-        winnerId =
-          Object.values(newNations).find((n) => !n.isPlayer && !n.defeated)?.id ??
-          null;
-      } else if (Object.values(newNations).every((n) => n.isPlayer || n.defeated)) {
-        winnerId = player.id;
-      }
-
+      const winnerId = computeWinner(newNations, null);
       const income = incomeByNation[player.id] ?? 0;
       const monthEntry = `── 月${state.month + 1}開始 / ${player.name}: +¥${income}収入 ──`;
 
@@ -153,4 +192,21 @@ export const useGameStore = create<GameState & GameActions>((set) => ({
         },
       };
     }),
+
+  // ── 戦闘フェーズ ────────────────────────────────
+
+  endBattle: (winnerSide) =>
+    set((state) => {
+      if (!state.battle) return state;
+      return resolveBattle(state, winnerSide);
+    }),
+
+  // Step 3 で実装
+  selectUnit: (_unitId) => set((state) => state),
+
+  // Step 4 で実装
+  moveUnit: (_unitId, _to) => set((state) => state),
+
+  // Step 5 で実装
+  endTacticalTurn: () => set((state) => state),
 }));

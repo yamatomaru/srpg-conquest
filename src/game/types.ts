@@ -90,11 +90,15 @@ export interface TacticalMap {
 export interface BattleState {
   attackerNationId: string;
   defenderNationId: string;
-  territoryId: string;
+  fromTerritoryId: string;    // 攻撃元領地
+  territoryId: string;        // 争奪対象領地
   map: TacticalMap;
   units: BattleUnit[];
   currentSide: Side;
   turnCount: number;
+  selectedUnitId: string | null;
+  reachableCells: { x: number; y: number }[];
+  maxTurns: number;
 }
 
 // ============================================================
