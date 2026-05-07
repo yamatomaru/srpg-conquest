@@ -64,5 +64,54 @@ export const useGameStore = create<GameState & GameActions>((set) => ({
       return { ...result, ui: { ...state.ui, invasionMode: null } };
     }),
 
-  endPlayerTurn: () => set((state) => state),
+  endPlayerTurn: () =>
+    set((state) => {
+      if (state.winnerId !== null) return state;
+
+      // AI ターン（Sprint 2: 全国パス）
+
+      // 全領地の hasActed をリセット
+      const newTerritories = Object.fromEntries(
+        Object.entries(state.territories).map(([id, t]) => [
+          id,
+          { ...t, hasActed: false },
+        ]),
+      );
+
+      // 月収入を加算（所有領地の income 合計）
+      const incomeByNation: Record<string, number> = {};
+      Object.values(newTerritories).forEach((t) => {
+        incomeByNation[t.ownerId] = (incomeByNation[t.ownerId] ?? 0) + t.income;
+      });
+      const newNations = Object.fromEntries(
+        Object.entries(state.nations).map(([id, n]) => [
+          id,
+          { ...n, gold: n.gold + (incomeByNation[id] ?? 0) },
+        ]),
+      );
+
+      // 勝敗判定
+      const player = Object.values(newNations).find((n) => n.isPlayer)!;
+      let winnerId: string | null = null;
+      if (player.defeated) {
+        winnerId =
+          Object.values(newNations).find((n) => !n.isPlayer && !n.defeated)?.id ??
+          null;
+      } else if (Object.values(newNations).every((n) => n.isPlayer || n.defeated)) {
+        winnerId = player.id;
+      }
+
+      return {
+        territories: newTerritories,
+        nations: newNations,
+        month: state.month + 1,
+        currentNationId: player.id,
+        winnerId,
+        ui: {
+          ...state.ui,
+          invasionMode: null,
+          gameOverShown: winnerId !== null,
+        },
+      };
+    }),
 }));

@@ -1,5 +1,6 @@
 import StrategicMap from './components/StrategicMap';
 import TerritoryDetail from './components/TerritoryDetail';
+import TurnControl from './components/TurnControl';
 
 export default function App() {
   return (
@@ -13,16 +14,7 @@ export default function App() {
         color: '#f9fafb',
       }}
     >
-      {/* Step 5 で TurnControl に置き換える */}
-      <div
-        style={{
-          padding: '8px 16px',
-          background: '#1f2937',
-          borderBottom: '1px solid #374151',
-        }}
-      >
-        Sprint 2 — 戦略マップ構築中
-      </div>
+      <TurnControl />
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         <div
