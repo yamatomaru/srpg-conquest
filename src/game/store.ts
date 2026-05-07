@@ -14,6 +14,7 @@ const INITIAL_UI: UISelection = {
   selectedTerritoryId: null,
   invasionMode: null,
   gameOverShown: false,
+  log: [],
 };
 
 const getInitialState = (): GameState => ({
@@ -60,8 +61,27 @@ export const useGameStore = create<GameState & GameActions>((set) => ({
   // Sprint 4 で本物の戦闘ロジック（HP/ATK/DEF）に差し替える。
   executeInvasion: (fromId, toId) =>
     set((state) => {
+      const from = state.territories[fromId];
+      const to = state.territories[toId];
+      const attackerCount = from.garrisonIds.length;
+      const defenderCount = to.garrisonIds.length;
+      const attackerName = state.nations[from.ownerId].name;
+
       const result = executeDummyBattle(state, fromId, toId);
-      return { ...result, ui: { ...state.ui, invasionMode: null } };
+
+      const victory = attackerCount > defenderCount;
+      const entry = victory
+        ? `★ ${attackerName}が「${to.name}」を占領（兵 ${attackerCount} vs ${defenderCount}）`
+        : `✕ ${attackerName}の「${to.name}」侵攻失敗（兵 ${attackerCount} vs ${defenderCount}）`;
+
+      return {
+        ...result,
+        ui: {
+          ...state.ui,
+          invasionMode: null,
+          log: [entry, ...state.ui.log].slice(0, 5),
+        },
+      };
     }),
 
   endPlayerTurn: () =>
@@ -101,6 +121,9 @@ export const useGameStore = create<GameState & GameActions>((set) => ({
         winnerId = player.id;
       }
 
+      const income = incomeByNation[player.id] ?? 0;
+      const monthEntry = `── 月${state.month + 1}開始 / ${player.name}: +¥${income}収入 ──`;
+
       return {
         territories: newTerritories,
         nations: newNations,
@@ -111,6 +134,7 @@ export const useGameStore = create<GameState & GameActions>((set) => ({
           ...state.ui,
           invasionMode: null,
           gameOverShown: winnerId !== null,
+          log: [monthEntry, ...state.ui.log].slice(0, 5),
         },
       };
     }),

@@ -63,6 +63,7 @@ export interface UISelection {
   selectedTerritoryId: string | null;
   invasionMode: { fromTerritoryId: string } | null;
   gameOverShown: boolean;
+  log: string[]; // 直近の行動ログ（最大5件）
 }
 
 // ============================================================
