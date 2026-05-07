@@ -3,6 +3,7 @@ import type { GameState, UISelection } from './types';
 import { NATIONS } from '../data/nations';
 import { TERRITORIES } from '../data/territories';
 import { CHARACTERS } from '../data/characters';
+import { executeDummyBattle } from './battle';
 
 const playerNation = Object.values(NATIONS).find((n) => n.isPlayer);
 if (!playerNation) {
@@ -56,8 +57,12 @@ export const useGameStore = create<GameState & GameActions>((set) => ({
       ui: { ...state.ui, invasionMode: null },
     })),
 
-  // Sprint 4 で本物の戦闘ロジックに差し替える。実装は battle.ts 参照。
-  executeInvasion: (_fromId, _toId) => set((state) => state),
+  // Sprint 4 で本物の戦闘ロジック（HP/ATK/DEF）に差し替える。
+  executeInvasion: (fromId, toId) =>
+    set((state) => {
+      const result = executeDummyBattle(state, fromId, toId);
+      return { ...result, ui: { ...state.ui, invasionMode: null } };
+    }),
 
   endPlayerTurn: () => set((state) => state),
 }));
