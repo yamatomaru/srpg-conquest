@@ -27,7 +27,7 @@ export default function TacticalMap() {
 
   function handleCellClick(x: number, y: number) {
     const key = `${x},${y}`;
-    if (selectedUnitId && reachableSet.has(key)) {
+    if (selectedUnitId !== null && reachableSet.has(key)) {
       moveUnit(selectedUnitId, { x, y });
       return;
     }
@@ -47,26 +47,41 @@ export default function TacticalMap() {
         style={{ display: 'block' }}
       >
         <g transform={`translate(${PADDING}, ${PADDING})`}>
-          {/* グリッドセル背景 */}
+
+          {/* ① グリッド背景（常に同一色） */}
           {Array.from({ length: map.height }, (_, row) =>
-            Array.from({ length: map.width }, (_, col) => {
-              const isReachable = reachableSet.has(`${col},${row}`);
-              return (
-                <rect
-                  key={`cell-${col}-${row}`}
-                  x={col * CELL}
-                  y={row * CELL}
-                  width={CELL}
-                  height={CELL}
-                  fill={isReachable ? '#1e4d8a' : '#1e3a5f'}
-                  stroke={isReachable ? '#60a5fa' : '#374151'}
-                  strokeWidth={isReachable ? 2 : 1}
-                />
-              );
-            }),
+            Array.from({ length: map.width }, (_, col) => (
+              <rect
+                key={`bg-${col}-${row}`}
+                x={col * CELL}
+                y={row * CELL}
+                width={CELL}
+                height={CELL}
+                fill="#1e3a5f"
+                stroke="#374151"
+                strokeWidth={1}
+              />
+            )),
           )}
 
-          {/* ユニット（視覚のみ、クリック非対応） */}
+          {/* ② 移動範囲ハイライト（背景の上、ユニットの下） */}
+          {reachableCells.map(({ x, y }) => (
+            <rect
+              key={`reach-${x}-${y}`}
+              x={x * CELL + 2}
+              y={y * CELL + 2}
+              width={CELL - 4}
+              height={CELL - 4}
+              fill="#60a5fa"
+              fillOpacity={0.45}
+              stroke="#93c5fd"
+              strokeWidth={2}
+              rx={4}
+              style={{ pointerEvents: 'none' }}
+            />
+          ))}
+
+          {/* ③ ユニット（クリック非対応） */}
           {units.map((unit) => {
             const ch = characters[unit.characterId];
             const cx = unit.position.x * CELL + CELL / 2;
@@ -75,12 +90,11 @@ export default function TacticalMap() {
             const abbr = JOB_ABBR[ch.jobId] ?? '?';
             const hpRatio = unit.currentHp / ch.maxHp;
             const isSelected = unit.characterId === selectedUnitId;
-            const isMoved = unit.hasMoved;
 
             return (
-              <g key={unit.characterId} style={{ opacity: isMoved ? 0.45 : 1, pointerEvents: 'none' }}>
+              <g key={unit.characterId} style={{ opacity: unit.hasMoved ? 0.45 : 1, pointerEvents: 'none' }}>
                 {isSelected && (
-                  <circle cx={cx} cy={cy} r={26} fill="none" stroke="#facc15" strokeWidth={3} />
+                  <circle cx={cx} cy={cy} r={27} fill="none" stroke="#facc15" strokeWidth={4} />
                 )}
                 <circle cx={cx} cy={cy} r={22} fill={color} stroke="#f9fafb" strokeWidth={1.5} />
                 <text x={cx} y={cy - 4} textAnchor="middle" dominantBaseline="middle" fill="#fff" fontSize={16} fontWeight="bold">
@@ -102,16 +116,17 @@ export default function TacticalMap() {
             );
           })}
 
-          {/* クリック透明オーバーレイ（全セル共通、最前面） */}
+          {/* ④ クリック透明オーバーレイ（最前面 / pointer-events:all で確実に捕捉） */}
           {Array.from({ length: map.height }, (_, row) =>
             Array.from({ length: map.width }, (_, col) => (
               <rect
-                key={`overlay-${col}-${row}`}
+                key={`hit-${col}-${row}`}
                 x={col * CELL}
                 y={row * CELL}
                 width={CELL}
                 height={CELL}
-                fill="transparent"
+                fill="none"
+                pointerEvents="all"
                 style={{ cursor: 'pointer' }}
                 onClick={() => handleCellClick(col, row)}
               />
