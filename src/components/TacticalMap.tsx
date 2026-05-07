@@ -47,14 +47,13 @@ export default function TacticalMap() {
         style={{ display: 'block' }}
       >
         <g transform={`translate(${PADDING}, ${PADDING})`}>
-          {/* グリッドセル */}
+          {/* グリッドセル背景 */}
           {Array.from({ length: map.height }, (_, row) =>
             Array.from({ length: map.width }, (_, col) => {
-              const key = `${col},${row}`;
-              const isReachable = reachableSet.has(key);
+              const isReachable = reachableSet.has(`${col},${row}`);
               return (
                 <rect
-                  key={key}
+                  key={`cell-${col}-${row}`}
                   x={col * CELL}
                   y={row * CELL}
                   width={CELL}
@@ -62,14 +61,12 @@ export default function TacticalMap() {
                   fill={isReachable ? '#1e4d8a' : '#1e3a5f'}
                   stroke={isReachable ? '#60a5fa' : '#374151'}
                   strokeWidth={isReachable ? 2 : 1}
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => handleCellClick(col, row)}
                 />
               );
             }),
           )}
 
-          {/* ユニット */}
+          {/* ユニット（視覚のみ、クリック非対応） */}
           {units.map((unit) => {
             const ch = characters[unit.characterId];
             const cx = unit.position.x * CELL + CELL / 2;
@@ -81,33 +78,15 @@ export default function TacticalMap() {
             const isMoved = unit.hasMoved;
 
             return (
-              <g
-                key={unit.characterId}
-                style={{ cursor: 'pointer', opacity: isMoved ? 0.45 : 1 }}
-                onClick={() => handleCellClick(unit.position.x, unit.position.y)}
-              >
-                {/* 選択リング */}
+              <g key={unit.characterId} style={{ opacity: isMoved ? 0.45 : 1, pointerEvents: 'none' }}>
                 {isSelected && (
                   <circle cx={cx} cy={cy} r={26} fill="none" stroke="#facc15" strokeWidth={3} />
                 )}
-                {/* ユニット本体 */}
                 <circle cx={cx} cy={cy} r={22} fill={color} stroke="#f9fafb" strokeWidth={1.5} />
-                {/* ジョブ略称 */}
-                <text
-                  x={cx}
-                  y={cy - 4}
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  fill="#fff"
-                  fontSize={16}
-                  fontWeight="bold"
-                  style={{ pointerEvents: 'none' }}
-                >
+                <text x={cx} y={cy - 4} textAnchor="middle" dominantBaseline="middle" fill="#fff" fontSize={16} fontWeight="bold">
                   {abbr}
                 </text>
-                {/* HP バー背景 */}
                 <rect x={cx - 18} y={cy + 13} width={36} height={5} fill="#374151" rx={2} />
-                {/* HP バー */}
                 <rect
                   x={cx - 18}
                   y={cy + 13}
@@ -116,26 +95,34 @@ export default function TacticalMap() {
                   fill={hpRatio > 0.5 ? '#22c55e' : hpRatio > 0.25 ? '#f59e0b' : '#ef4444'}
                   rx={2}
                 />
-                {/* HP 数値 */}
-                <text
-                  x={cx}
-                  y={cy + 10}
-                  textAnchor="middle"
-                  fill="#d1d5db"
-                  fontSize={9}
-                  style={{ pointerEvents: 'none' }}
-                >
+                <text x={cx} y={cy + 10} textAnchor="middle" fill="#d1d5db" fontSize={9}>
                   {unit.currentHp}
                 </text>
               </g>
             );
           })}
 
+          {/* クリック透明オーバーレイ（全セル共通、最前面） */}
+          {Array.from({ length: map.height }, (_, row) =>
+            Array.from({ length: map.width }, (_, col) => (
+              <rect
+                key={`overlay-${col}-${row}`}
+                x={col * CELL}
+                y={row * CELL}
+                width={CELL}
+                height={CELL}
+                fill="transparent"
+                style={{ cursor: 'pointer' }}
+                onClick={() => handleCellClick(col, row)}
+              />
+            )),
+          )}
+
           {/* 国名ラベル */}
-          <text x={CELL * 0.5} y={-8} textAnchor="middle" fill={nations[battle.attackerNationId].color} fontSize={12}>
+          <text x={CELL * 0.5} y={-8} textAnchor="middle" fill={nations[battle.attackerNationId].color} fontSize={12} style={{ pointerEvents: 'none' }}>
             {nations[battle.attackerNationId].name}
           </text>
-          <text x={CELL * (map.width - 0.5)} y={-8} textAnchor="middle" fill={nations[battle.defenderNationId].color} fontSize={12}>
+          <text x={CELL * (map.width - 0.5)} y={-8} textAnchor="middle" fill={nations[battle.defenderNationId].color} fontSize={12} style={{ pointerEvents: 'none' }}>
             {nations[battle.defenderNationId].name}
           </text>
         </g>
