@@ -5,6 +5,7 @@ import { TERRITORIES } from '../data/territories';
 import { CHARACTERS } from '../data/characters';
 import { applyAttackerWins, applyDefenderWins } from './battle';
 import { placeUnits } from './tactical/placement';
+import { calcReachable } from './tactical/movement';
 
 const playerNation = Object.values(NATIONS).find((n) => n.isPlayer);
 if (!playerNation) {
@@ -202,12 +203,102 @@ export const useGameStore = create<GameState & GameActions>((set) => ({
       return resolveBattle(state, winnerSide);
     }),
 
-  // Step 3 で実装
-  selectUnit: (_unitId) => set((state) => state),
+  selectUnit: (unitId) =>
+    set((state) => {
+      if (!state.battle) return state;
+      if (unitId === null) {
+        return {
+          battle: { ...state.battle, selectedUnitId: null, reachableCells: [] },
+        };
+      }
+      const unit = state.battle.units.find((u) => u.characterId === unitId);
+      if (!unit) return state;
+      // 自陣側かつ現ターンのみ選択可
+      if (unit.side !== state.battle.currentSide) return state;
+      const ch = state.characters[unitId];
+      const reachable = calcReachable(
+        unit,
+        ch.mov,
+        state.battle.units,
+        state.battle.map.width,
+        state.battle.map.height,
+      );
+      return {
+        battle: { ...state.battle, selectedUnitId: unitId, reachableCells: reachable },
+      };
+    }),
 
-  // Step 4 で実装
-  moveUnit: (_unitId, _to) => set((state) => state),
+  moveUnit: (unitId, to) =>
+    set((state) => {
+      if (!state.battle) return state;
+      const isReachable = state.battle.reachableCells.some(
+        (c) => c.x === to.x && c.y === to.y,
+      );
+      if (!isReachable) return state;
+      const newUnits = state.battle.units.map((u) =>
+        u.characterId === unitId
+          ? { ...u, position: to, hasMoved: true }
+          : u,
+      );
+      return {
+        battle: {
+          ...state.battle,
+          units: newUnits,
+          selectedUnitId: null,
+          reachableCells: [],
+        },
+      };
+    }),
 
-  // Step 5 で実装
-  endTacticalTurn: () => set((state) => state),
+  endTacticalTurn: () =>
+    set((state) => {
+      if (!state.battle) return state;
+
+      const nextSide: 'attacker' | 'defender' =
+        state.battle.currentSide === 'attacker' ? 'defender' : 'attacker';
+      const newTurnCount =
+        state.battle.currentSide === 'defender'
+          ? state.battle.turnCount + 1
+          : state.battle.turnCount;
+
+      // 30ターン上限: 防衛側勝利で強制終了
+      if (newTurnCount >= state.battle.maxTurns) {
+        return resolveBattle(state, 'defender');
+      }
+
+      // 防衛側 AI は即パス（Sprint 5 で実装）
+      const afterAi =
+        nextSide === 'defender'
+          ? (() => {
+              const attackerTurn: 'attacker' | 'defender' = 'attacker';
+              const resetUnits = state.battle!.units.map((u) =>
+                u.side === 'attacker' ? { ...u, hasMoved: false, hasActed: false } : u,
+              );
+              return {
+                ...state.battle!,
+                currentSide: attackerTurn,
+                turnCount: newTurnCount + 1,
+                units: resetUnits,
+                selectedUnitId: null,
+                reachableCells: [],
+              };
+            })()
+          : {
+              ...state.battle,
+              currentSide: nextSide,
+              turnCount: newTurnCount,
+              units: state.battle.units.map((u) =>
+                u.side === nextSide ? { ...u, hasMoved: false, hasActed: false } : u,
+              ),
+              selectedUnitId: null,
+              reachableCells: [],
+            };
+
+      // 再度ターン数チェック（AI パス後）
+      if (afterAi.turnCount >= state.battle.maxTurns) {
+        return resolveBattle({ ...state, battle: afterAi }, 'defender');
+      }
+
+      return { battle: afterAi };
+    }),
 }));

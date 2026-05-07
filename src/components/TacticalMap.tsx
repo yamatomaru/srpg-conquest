@@ -15,12 +15,29 @@ const SIDE_COLOR: Record<string, string> = {
 };
 
 export default function TacticalMap() {
-  const { battle, characters, nations } = useGameStore();
+  const { battle, characters, nations, selectUnit, moveUnit } = useGameStore();
   if (!battle) return null;
 
-  const { map, units } = battle;
+  const { map, units, selectedUnitId, reachableCells, currentSide } = battle;
   const W = map.width * CELL;
   const H = map.height * CELL;
+
+  const reachableSet = new Set(reachableCells.map((c) => `${c.x},${c.y}`));
+  const unitAtPos = new Map(units.map((u) => [`${u.position.x},${u.position.y}`, u]));
+
+  function handleCellClick(x: number, y: number) {
+    const key = `${x},${y}`;
+    if (selectedUnitId && reachableSet.has(key)) {
+      moveUnit(selectedUnitId, { x, y });
+      return;
+    }
+    const unit = unitAtPos.get(key);
+    if (unit && unit.side === currentSide && !unit.hasMoved) {
+      selectUnit(unit.characterId);
+    } else {
+      selectUnit(null);
+    }
+  }
 
   return (
     <div style={{ overflow: 'auto', display: 'flex', justifyContent: 'center', alignItems: 'center', flex: 1 }}>
@@ -32,18 +49,24 @@ export default function TacticalMap() {
         <g transform={`translate(${PADDING}, ${PADDING})`}>
           {/* グリッドセル */}
           {Array.from({ length: map.height }, (_, row) =>
-            Array.from({ length: map.width }, (_, col) => (
-              <rect
-                key={`${col}-${row}`}
-                x={col * CELL}
-                y={row * CELL}
-                width={CELL}
-                height={CELL}
-                fill="#1e3a5f"
-                stroke="#374151"
-                strokeWidth={1}
-              />
-            )),
+            Array.from({ length: map.width }, (_, col) => {
+              const key = `${col},${row}`;
+              const isReachable = reachableSet.has(key);
+              return (
+                <rect
+                  key={key}
+                  x={col * CELL}
+                  y={row * CELL}
+                  width={CELL}
+                  height={CELL}
+                  fill={isReachable ? '#1e4d8a' : '#1e3a5f'}
+                  stroke={isReachable ? '#60a5fa' : '#374151'}
+                  strokeWidth={isReachable ? 2 : 1}
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => handleCellClick(col, row)}
+                />
+              );
+            }),
           )}
 
           {/* ユニット */}
@@ -54,9 +77,19 @@ export default function TacticalMap() {
             const color = SIDE_COLOR[unit.side];
             const abbr = JOB_ABBR[ch.jobId] ?? '?';
             const hpRatio = unit.currentHp / ch.maxHp;
+            const isSelected = unit.characterId === selectedUnitId;
+            const isMoved = unit.hasMoved;
 
             return (
-              <g key={unit.characterId}>
+              <g
+                key={unit.characterId}
+                style={{ cursor: 'pointer', opacity: isMoved ? 0.45 : 1 }}
+                onClick={() => handleCellClick(unit.position.x, unit.position.y)}
+              >
+                {/* 選択リング */}
+                {isSelected && (
+                  <circle cx={cx} cy={cy} r={26} fill="none" stroke="#facc15" strokeWidth={3} />
+                )}
                 {/* ユニット本体 */}
                 <circle cx={cx} cy={cy} r={22} fill={color} stroke="#f9fafb" strokeWidth={1.5} />
                 {/* ジョブ略称 */}
@@ -68,6 +101,7 @@ export default function TacticalMap() {
                   fill="#fff"
                   fontSize={16}
                   fontWeight="bold"
+                  style={{ pointerEvents: 'none' }}
                 >
                   {abbr}
                 </text>
@@ -83,7 +117,14 @@ export default function TacticalMap() {
                   rx={2}
                 />
                 {/* HP 数値 */}
-                <text x={cx} y={cy + 10} textAnchor="middle" fill="#d1d5db" fontSize={9}>
+                <text
+                  x={cx}
+                  y={cy + 10}
+                  textAnchor="middle"
+                  fill="#d1d5db"
+                  fontSize={9}
+                  style={{ pointerEvents: 'none' }}
+                >
                   {unit.currentHp}
                 </text>
               </g>
