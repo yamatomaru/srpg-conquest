@@ -1,4 +1,5 @@
 import StrategicMap from './components/StrategicMap';
+import TerritoryDetail from './components/TerritoryDetail';
 
 export default function App() {
   return (
@@ -36,17 +37,14 @@ export default function App() {
           <StrategicMap />
         </div>
 
-        {/* Step 3 で TerritoryDetail に置き換える */}
         <div
           style={{
             width: 260,
             borderLeft: '1px solid #374151',
-            padding: 16,
-            color: '#6b7280',
-            fontSize: 13,
+            overflowY: 'auto',
           }}
         >
-          ← 領地をクリックして選択
+          <TerritoryDetail />
         </div>
       </div>
     </div>
