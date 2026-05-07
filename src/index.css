@@ -1,0 +1,27 @@
+:root {
+  font-family: system-ui, -apple-system, "Helvetica Neue", "Hiragino Sans",
+    "Hiragino Kaku Gothic ProN", "Yu Gothic UI", sans-serif;
+  line-height: 1.5;
+  color-scheme: light dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+h1, h2, h3 {
+  margin: 0.4em 0 0.2em;
+}
+
+section {
+  margin: 1.2em 0;
+}
