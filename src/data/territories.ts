@@ -22,6 +22,7 @@ export const TERRITORIES: Record<string, Territory> = {
     adjacentTo: ['north', 'east', 'south', 'west'],
     position: { x: 340, y: 220 },
     income: 80,
+    hasActed: false,
   },
   north: {
     id: 'north',
@@ -31,6 +32,7 @@ export const TERRITORIES: Record<string, Territory> = {
     adjacentTo: ['central', 'east', 'west'],
     position: { x: 340, y: 80 },
     income: 60,
+    hasActed: false,
   },
   east: {
     id: 'east',
@@ -40,6 +42,7 @@ export const TERRITORIES: Record<string, Territory> = {
     adjacentTo: ['central', 'north', 'south'],
     position: { x: 520, y: 220 },
     income: 100,
+    hasActed: false,
   },
   south: {
     id: 'south',
@@ -49,6 +52,7 @@ export const TERRITORIES: Record<string, Territory> = {
     adjacentTo: ['central', 'east', 'west'],
     position: { x: 340, y: 360 },
     income: 60,
+    hasActed: false,
   },
   west: {
     id: 'west',
@@ -58,5 +62,6 @@ export const TERRITORIES: Record<string, Territory> = {
     adjacentTo: ['central', 'north', 'south'],
     position: { x: 160, y: 220 },
     income: 40,
+    hasActed: false,
   },
 };

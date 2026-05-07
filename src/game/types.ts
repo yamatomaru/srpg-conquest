@@ -52,6 +52,17 @@ export interface Territory {
   adjacentTo: string[];     // 隣接領地ID
   position: { x: number; y: number }; // SVGマップ座標
   income: number;           // 月収入
+  hasActed: boolean;        // 月内に侵攻アクションを実行済みか
+}
+
+// ============================================================
+// UI状態
+// ============================================================
+
+export interface UISelection {
+  selectedTerritoryId: string | null;
+  invasionMode: { fromTerritoryId: string } | null;
+  gameOverShown: boolean;
 }
 
 // ============================================================
@@ -100,4 +111,5 @@ export interface GameState {
   characters: Record<string, Character>;
   battle: BattleState | null;
   winnerId: string | null;
+  ui: UISelection;
 }
