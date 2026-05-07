@@ -74,11 +74,26 @@ export const useGameStore = create<GameState & GameActions>((set) => ({
         ? `★ ${attackerName}が「${to.name}」を占領（兵 ${attackerCount} vs ${defenderCount}）`
         : `✕ ${attackerName}の「${to.name}」侵攻失敗（兵 ${attackerCount} vs ${defenderCount}）`;
 
+      // 戦闘後の即時勝敗チェック
+      const player = Object.values(result.nations).find((n) => n.isPlayer)!;
+      let winnerId = state.winnerId;
+      if (winnerId === null) {
+        if (player.defeated) {
+          winnerId =
+            Object.values(result.nations).find((n) => !n.isPlayer && !n.defeated)
+              ?.id ?? null;
+        } else if (Object.values(result.nations).every((n) => n.isPlayer || n.defeated)) {
+          winnerId = player.id;
+        }
+      }
+
       return {
         ...result,
+        winnerId,
         ui: {
           ...state.ui,
           invasionMode: null,
+          gameOverShown: winnerId !== null,
           log: [entry, ...state.ui.log].slice(0, 5),
         },
       };

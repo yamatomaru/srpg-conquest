@@ -81,14 +81,8 @@ export function executeDummyBattle(
       [fromId]: { ...from, garrisonIds: [], hasActed: true },
     };
 
-    // 攻撃側が全領地かつ全兵を失ったら defeated
-    const attackerTerritoryCount = Object.values(newTerritories).filter(
-      (t) => t.ownerId === attackerNationId,
-    ).length;
-    if (
-      attackerTerritoryCount === 0 &&
-      newNations[attackerNationId].characterIds.length === 0
-    ) {
+    // 攻撃側の兵が全滅したら defeated（空の領地を持っていても戦えないため）
+    if (newNations[attackerNationId].characterIds.length === 0) {
       newNations[attackerNationId] = {
         ...newNations[attackerNationId],
         defeated: true,
