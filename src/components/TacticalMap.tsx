@@ -26,9 +26,17 @@ interface Popup {
 let popupCounter = 0;
 
 export default function TacticalMap() {
-  const { battle, characters, nations, selectUnit, moveUnit, attackUnit } = useGameStore();
+  const { battle, characters, nations, selectUnit, moveUnit, attackUnit, endBattle } = useGameStore();
   const [popups, setPopups] = useState<Popup[]>([]);
   const prevLogRef = useRef(battle?.recentLog[0] ?? null);
+
+  // 戦闘終了を遅延解決（ポップアップ表示後に戦略マップへ）
+  const pendingEnd = battle?.pendingEnd ?? null;
+  useEffect(() => {
+    if (!pendingEnd) return;
+    const timer = setTimeout(() => endBattle(pendingEnd), 900);
+    return () => clearTimeout(timer);
+  }, [pendingEnd]);
 
   // ダメージポップアップ
   const currentLog = battle?.recentLog[0] ?? null;

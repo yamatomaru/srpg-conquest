@@ -176,6 +176,7 @@ export const useGameStore = create<GameState & GameActions>((set) => ({
         reachableCells: [],
         attackTargets: [],
         recentLog: [],
+        pendingEnd: null,
         maxTurns: 30,
       };
 
@@ -349,6 +350,13 @@ export const useGameStore = create<GameState & GameActions>((set) => ({
       };
       const newLog = [logEntry, ...state.battle.recentLog].slice(0, 5);
 
+      // 戦闘終了判定（ポップアップ表示のため pendingEnd で遅延解決）
+      const attackerUnits = newUnits.filter((u) => u.side === 'attacker');
+      const defenderUnits = newUnits.filter((u) => u.side === 'defender');
+      const pendingEnd: Side | null =
+        defenderUnits.length === 0 ? 'attacker' :
+        attackerUnits.length === 0 ? 'defender' : null;
+
       const newBattle = {
         ...state.battle,
         units: newUnits,
@@ -356,17 +364,8 @@ export const useGameStore = create<GameState & GameActions>((set) => ({
         reachableCells: [],
         attackTargets: [],
         recentLog: newLog,
+        pendingEnd,
       };
-
-      // 戦闘終了判定
-      const attackerUnits = newUnits.filter((u) => u.side === 'attacker');
-      const defenderUnits = newUnits.filter((u) => u.side === 'defender');
-      if (defenderUnits.length === 0) {
-        return resolveBattle({ ...state, nations: newNations, battle: newBattle }, 'attacker');
-      }
-      if (attackerUnits.length === 0) {
-        return resolveBattle({ ...state, nations: newNations, battle: newBattle }, 'defender');
-      }
 
       return { nations: newNations, battle: newBattle };
     }),

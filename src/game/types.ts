@@ -108,6 +108,7 @@ export interface BattleState {
   reachableCells: { x: number; y: number }[];
   attackTargets: string[];            // 選択中ユニットが攻撃可能な敵ID
   recentLog: BattleLogEntry[];        // 直近の戦闘ログ（最新5件）
+  pendingEnd: Side | null;            // 撃破ポップアップ表示後に解決する勝者サイド
   maxTurns: number;
 }
 
