@@ -24,10 +24,12 @@ function createCharacter(
 }
 
 export const CHARACTERS: Record<string, Character> = {
-  // === アルバニア王国（プレイヤー国・バランス型） ===
+  // === アルバニア王国（プレイヤー国・バランス型） Sprint 2 テスト用に5名に増強 ===
   c_lion:    createCharacter('c_lion',    'リオン王',     'warrior'),
   c_clare:   createCharacter('c_clare',   'クレア',       'mage'),
   c_galon:   createCharacter('c_galon',   'ガロン',       'warrior'),
+  c_sera:    createCharacter('c_sera',    'セラ',         'mage'),
+  c_dion:    createCharacter('c_dion',    'ディオン',     'warrior'),
 
   // === ノルダー氏族（北・戦士主体） ===
   c_torga:   createCharacter('c_torga',   'トルガ',       'warrior'),
