@@ -7,15 +7,17 @@ export default function BattleLog() {
   return (
     <div
       style={{
-        padding: '6px 16px',
+        padding: '9px 24px',
         background: '#111827',
         borderTop: '1px solid #374151',
-        fontSize: 12,
+        fontSize: 17,
         color: '#9ca3af',
         display: 'flex',
         flexDirection: 'column',
         gap: 2,
         flexShrink: 0,
+        maxHeight: 160,
+        overflowY: 'auto',
       }}
     >
       {log.map((entry, i) => (

@@ -1,42 +1,97 @@
 import type { Job, JobId } from '../game/types';
 
 /**
- * ジョブ基本値テーブル。
- * 戦士は前衛タンク、弓兵は遠距離・機動、魔導師は紙装甲・高火力。
- * ダメージ計算式: damage = max(1, atk - def)
+ * ジョブ基本値テーブル。damage = max(1, atk - def)
+ * MOVは移動力兼イニシアチブ（高いほど先攻）。
+ *
+ * 盾士: 高耐久・低火力・前衛 range=1
+ * 戦士: 高火力・中耐久・前衛 range=1
+ * 槍士: 中衛・range=1-2（maxRange=2）
+ * 弓師: 後衛・高機動・range=3
+ * 魔術師: 後衛・最高火力・低速・range=3
  */
 export const JOBS: Record<JobId, Job> = {
+  shielder: {
+    id: 'shielder',
+    name: '盾士',
+    description: '頑強な防御で味方を守る前衛。火力は低いが滅多に倒れない。',
+    baseHp: 45,
+    baseAtk: 8,
+    baseDef: 10,
+    baseMatk: 3,
+    baseMdef: 8,
+    baseMov: 3,
+    baseRange: 1,
+    spritePath: '/sprites/shielder.png',
+    skillId: 'guardian_stance',
+    skillName: '庇護の構え',
+  },
   warrior: {
     id: 'warrior',
     name: '戦士',
-    description: '近接攻撃で前線を支える。HP・防御に優れる。',
+    description: '高い攻撃力で前線を制圧する近接アタッカー。',
     baseHp: 32,
-    baseAtk: 10,
+    baseAtk: 12,
     baseDef: 5,
-    baseMov: 4,
+    baseMatk: 4,
+    baseMdef: 4,
+    baseMov: 3,
     baseRange: 1,
     spritePath: '/sprites/warrior.png',
+    skillId: 'power_strike',
+    skillName: '渾身撃',
+  },
+  spearman: {
+    id: 'spearman',
+    name: '槍士',
+    description: '槍の間合い（1〜2マス）で戦う中衛職。前後どちらにも対応できる。',
+    baseHp: 28,
+    baseAtk: 10,
+    baseDef: 5,
+    baseMatk: 4,
+    baseMdef: 4,
+    baseMov: 4,
+    baseRange: 2,
+    spritePath: '/sprites/spearman.png',
+    skillId: 'charge',
+    skillName: '突撃',
   },
   archer: {
     id: 'archer',
-    name: '弓兵',
-    description: '遠距離攻撃と高機動を持つアタッカー。',
-    baseHp: 22,
-    baseAtk: 9,
-    baseDef: 3,
+    name: '弓師',
+    description: '高機動と遠距離攻撃を併せ持つ後衛。先手を取りやすい。',
+    baseHp: 20,
+    baseAtk: 11,
+    baseDef: 4,
+    baseMatk: 5,
+    baseMdef: 5,
     baseMov: 5,
     baseRange: 3,
     spritePath: '/sprites/archer.png',
+    skillId: 'double_shot',
+    skillName: '連射',
   },
   mage: {
     id: 'mage',
-    name: '魔導師',
-    description: '紙装甲だが最高火力。中距離からの攻撃が得意。',
-    baseHp: 20,
-    baseAtk: 12,
+    name: '魔術師',
+    description: '圧倒的な魔法火力と長射程を持つが、装甲は最も薄い後衛職。',
+    baseHp: 22,
+    baseAtk: 6,
     baseDef: 2,
-    baseMov: 4,
-    baseRange: 2,
+    baseMatk: 16,
+    baseMdef: 6,
+    baseMov: 3,
+    baseRange: 3,
     spritePath: '/sprites/mage.png',
+    skillId: 'area_magic',
+    skillName: '全体魔法',
   },
+};
+
+export const JOB_ABBR: Record<JobId, string> = {
+  shielder: '盾',
+  warrior:  '戦',
+  spearman: '槍',
+  archer:   '弓',
+  mage:     '魔',
 };

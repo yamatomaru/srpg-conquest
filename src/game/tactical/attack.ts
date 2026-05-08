@@ -1,7 +1,20 @@
-import type { BattleUnit, Character } from '../types';
+import type { BattleUnit, Character, TerrainType } from '../types';
+import { TERRAIN_DEFS } from '../terrain';
 
-export function calculateDamage(attacker: Character, defender: Character): number {
-  return Math.max(1, attacker.atk - defender.def);
+export function calculateDamage(
+  attacker: Character,
+  defender: Character,
+  terrain?: TerrainType,
+  powerAttack = false,
+): number {
+  const defBonus  = terrain ? TERRAIN_DEFS[terrain].defBonus  : 0;
+  const mdefBonus = terrain ? TERRAIN_DEFS[terrain].mdefBonus : 0;
+
+  const raw = attacker.jobId === 'mage'
+    ? attacker.matk - (defender.mdef + mdefBonus)
+    : attacker.atk  - (defender.def  + defBonus);
+
+  return Math.max(1, powerAttack ? raw * 2 : raw);
 }
 
 export function canAttack(

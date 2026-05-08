@@ -3,50 +3,65 @@ import type { Nation } from '../game/types';
 export const NATIONS: Record<string, Nation> = {
   albania: {
     id: 'albania',
-    name: 'アルバニア王国',
-    color: '#3b82f6', // 青
-    rulerId: 'c_lion',
-    characterIds: ['c_lion', 'c_clare', 'c_galon', 'c_sera', 'c_dion'],
+    name: '朱雀王国',
+    color: '#3b82f6',
+    faction: '朱雀',
+    rulerId: 'c_alba_1',
+    capitalTerritoryId: 'alba5',
+    characterIds: ['c_alba_1','c_alba_2','c_alba_3','c_alba_4','c_alba_5',
+                   'c_alba_6','c_alba_7','c_alba_8','c_alba_9','c_alba_10'],
     gold: 200,
     isPlayer: true,
     defeated: false,
   },
-  nordal: {
-    id: 'nordal',
-    name: 'ノルダー氏族',
-    color: '#6b7280', // 鋼鉄色
-    rulerId: 'c_torga',
-    characterIds: ['c_torga'], // Sprint 2 テスト用に君主1名
-    gold: 150,
+  magnus: {
+    id: 'magnus',
+    name: '青龍魔導院',
+    color: '#a855f7',
+    faction: '青龍',
+    rulerId: 'c_magn_1',
+    capitalTerritoryId: 'magn4',
+    characterIds: ['c_magn_1','c_magn_2','c_magn_3','c_magn_4','c_magn_5',
+                   'c_magn_6','c_magn_7','c_magn_8','c_magn_9','c_magn_10'],
+    gold: 250,
     isPlayer: false,
     defeated: false,
   },
-  magnus: {
-    id: 'magnus',
-    name: 'マグナス魔導院',
-    color: '#a855f7', // 紫
-    rulerId: 'c_arcana',
-    characterIds: ['c_arcana'], // Sprint 2 テスト用に君主1名
-    gold: 250,
+  nordal: {
+    id: 'nordal',
+    name: '玄武氏族',
+    color: '#6b7280',
+    faction: '玄武',
+    rulerId: 'c_nord_1',
+    capitalTerritoryId: 'nord3',
+    characterIds: ['c_nord_1','c_nord_2','c_nord_3','c_nord_4','c_nord_5',
+                   'c_nord_6','c_nord_7','c_nord_8','c_nord_9','c_nord_10'],
+    gold: 150,
     isPlayer: false,
     defeated: false,
   },
   sylvan: {
     id: 'sylvan',
-    name: 'シルヴァン同盟',
-    color: '#22c55e', // 緑
-    rulerId: 'c_loren',
-    characterIds: ['c_loren'], // Sprint 2 テスト用に君主1名
+    name: '黄竜同盟',
+    color: '#22c55e',
+    faction: '黄竜',
+    rulerId: 'c_silv_1',
+    capitalTerritoryId: 'silv2',
+    characterIds: ['c_silv_1','c_silv_2','c_silv_3','c_silv_4','c_silv_5',
+                   'c_silv_6','c_silv_7','c_silv_8','c_silv_9','c_silv_10'],
     gold: 150,
     isPlayer: false,
     defeated: false,
   },
   wess: {
     id: 'wess',
-    name: 'ヴィース小公国',
-    color: '#eab308', // 黄
-    rulerId: 'c_peter',
-    characterIds: ['c_peter'], // Sprint 2 テスト用に君主1名
+    name: '白虎公国',
+    color: '#eab308',
+    faction: '白虎',
+    rulerId: 'c_vies_1',
+    capitalTerritoryId: 'vies3',
+    characterIds: ['c_vies_1','c_vies_2','c_vies_3','c_vies_4','c_vies_5',
+                   'c_vies_6','c_vies_7','c_vies_8','c_vies_9','c_vies_10'],
     gold: 80,
     isPlayer: false,
     defeated: false,

@@ -2,7 +2,9 @@
 // ジョブ・キャラクター
 // ============================================================
 
-export type JobId = 'warrior' | 'archer' | 'mage';
+export type JobId = 'shielder' | 'warrior' | 'spearman' | 'archer' | 'mage';
+
+export type TerrainType = 'plain' | 'forest' | 'mountain' | 'fortress';
 
 export interface Job {
   id: JobId;
@@ -11,9 +13,13 @@ export interface Job {
   baseHp: number;
   baseAtk: number;
   baseDef: number;
-  baseMov: number;   // 移動力（マス数）
+  baseMatk: number;  // 魔法攻撃力
+  baseMdef: number;  // 魔法防御力
+  baseMov: number;   // 移動力（マス数）兼行動速度
   baseRange: number; // 攻撃射程（マンハッタン距離）
   spritePath: string;
+  skillId: string;   // 特殊スキルID
+  skillName: string; // 特殊スキル表示名
 }
 
 export interface Character {
@@ -21,12 +27,16 @@ export interface Character {
   name: string;
   jobId: JobId;
   level: number;
+  exp: number;       // 経験値
   hp: number;        // 現在HP
   maxHp: number;
   atk: number;
   def: number;
+  matk: number;      // 魔法攻撃力
+  mdef: number;      // 魔法防御力
   mov: number;
   range: number;
+  spritePath?: string;
 }
 
 // ============================================================
@@ -36,9 +46,11 @@ export interface Character {
 export interface Nation {
   id: string;
   name: string;
-  color: string;          // SVGマップ表示色
-  rulerId: string;        // 君主のキャラクターID
-  characterIds: string[]; // 所属キャラクター
+  color: string;
+  faction: string;        // 朱雀/青龍/玄武/黄竜/白虎
+  rulerId: string;
+  capitalTerritoryId: string; // 本拠地（戦闘不能キャラの帰還先）
+  characterIds: string[];
   gold: number;
   isPlayer: boolean;
   defeated: boolean;
@@ -47,23 +59,70 @@ export interface Nation {
 export interface Territory {
   id: string;
   name: string;
-  ownerId: string;          // 所有国ID
-  garrisonIds: string[];    // 駐留キャラクターID
-  adjacentTo: string[];     // 隣接領地ID
-  position: { x: number; y: number }; // SVGマップ座標
-  income: number;           // 月収入
-  hasActed: boolean;        // 月内に侵攻アクションを実行済みか
+  ownerId: string;
+  garrisonIds: string[];
+  adjacentTo: string[];
+  position: { x: number; y: number }; // グリッド座標 (col, row)
+  income: number;
+  hasActed: boolean;
 }
 
 // ============================================================
 // UI状態
 // ============================================================
 
+export interface InvasionPending {
+  fromTerritoryId: string;
+  toTerritoryId: string;
+}
+
+export type ActivePanel = 'none' | 'troops' | 'diplomacy' | 'mercenary' | 'objectives';
+
 export interface UISelection {
   selectedTerritoryId: string | null;
   invasionMode: { fromTerritoryId: string } | null;
+  invasionPending: InvasionPending | null;
+  transferMode: { fromTerritoryId: string } | null;
+  transferPending: { fromTerritoryId: string; toTerritoryId: string } | null;
   gameOverShown: boolean;
-  log: string[]; // 直近の行動ログ（最大5件）
+  log: string[];
+  activePanel: ActivePanel;
+}
+
+// ============================================================
+// 外交・傭兵・イベント・目標
+// ============================================================
+
+export type DiplomaticStatus = 'neutral' | 'alliance' | 'war';
+
+export interface DiplomacyRelation {
+  status: DiplomaticStatus;
+  turnsLeft: number; // 同盟残り月数（0=永続以外）
+}
+
+export interface GameEvent {
+  title: string;
+  description: string;
+  effectDesc: string;
+}
+
+export interface Objective {
+  id: string;
+  title: string;
+  description: string;
+  completed: boolean;
+}
+
+export interface MercTemplate {
+  id: string;
+  name: string;
+  jobId: JobId;
+  level: number;
+  cost: number; // 雇用コスト（gold）
+  faction: string; // 所属勢力（朱雀/青龍/玄武/黄竜/白虎）
+  isMCH?: boolean; // MyCryptoHeroesヒーロー
+  iconEmoji?: string; // MCHヒーロー用の絵文字アイコン（フォールバック）
+  imageUrl?: string; // MCHヒーロー肖像画URL
 }
 
 // ============================================================
@@ -75,16 +134,17 @@ export type Side = 'attacker' | 'defender';
 export interface BattleUnit {
   characterId: string;
   side: Side;
-  position: { x: number; y: number }; // グリッド座標
+  position: { x: number; y: number };
   currentHp: number;
   hasMoved: boolean;
   hasActed: boolean;
+  usedSkill: boolean; // スキル使用済み
 }
 
 export interface TacticalMap {
   width: number;
   height: number;
-  // MVP では地形なし（全マス平地）
+  terrain: TerrainType[][]; // [y][x]
 }
 
 export interface BattleLogEntry {
@@ -98,25 +158,119 @@ export interface BattleLogEntry {
 export interface BattleState {
   attackerNationId: string;
   defenderNationId: string;
-  fromTerritoryId: string;    // 攻撃元領地
-  territoryId: string;        // 争奪対象領地
+  fromTerritoryId: string;
+  territoryId: string;
   map: TacticalMap;
   units: BattleUnit[];
-  currentSide: Side;
-  turnCount: number;
+  originalAttackerIds: string[];  // 戦闘開始時の攻撃側ID（生死問わず）
+  originalDefenderIds: string[];  // 戦闘開始時の防衛側ID（生死問わず）
+  // イニシアチブ順ターン制
+  initiativeOrder: string[];   // characterId の速度順リスト（高MOV→先攻）
+  initiativeIndex: number;     // 現在の行動ユニットインデックス
+  turnCount: number;           // 経過ラウンド数
   selectedUnitId: string | null;
   reachableCells: { x: number; y: number }[];
-  attackTargets: string[];            // 選択中ユニットが攻撃可能な敵ID
-  recentLog: BattleLogEntry[];        // 直近の戦闘ログ（最新5件）
-  pendingEnd: Side | null;            // 撃破ポップアップ表示後に解決する勝者サイド
+  attackTargets: string[];
+  recentLog: BattleLogEntry[];
+  pendingEnd: Side | null;
+  playerSide: Side;
   maxTurns: number;
+  // スキルシステム
+  skillMode: boolean;          // スキルターゲット選択中
+  skillTargets: string[];      // スキルで狙えるユニットID
+  activeBuffs: Record<string, { def?: number; mdef?: number }>; // 一時バフ（unitId→加算値）
+  powerAttackIds: string[];    // 渾身撃 発動済みユニット（次攻撃2倍）
 }
 
 // ============================================================
 // ゲーム全体状態
 // ============================================================
 
-export type GamePhase = 'strategic' | 'tactical' | 'gameOver';
+export type GamePhase =
+  | 'setup'
+  | 'campaign_select'
+  | 'campaign_briefing'
+  | 'campaign_debrief'
+  | 'map_editor'
+  | 'strategic'
+  | 'tactical'
+  | 'gameOver';
+
+// ============================================================
+// キャンペーン
+// ============================================================
+
+export type ScenarioVictoryType = 'defeat_all' | 'capture_capital' | 'control_n' | 'survive_turns';
+
+export interface ScenarioVictory {
+  type: ScenarioVictoryType;
+  targetNationId?: string; // capture_capital
+  count?: number;          // control_n
+  turns?: number;          // survive_turns
+  description: string;
+}
+
+export interface CampaignScenario {
+  id: string;
+  chapter: number;
+  title: string;
+  description: string;
+  briefing: string;        // ストーリーテキスト
+  // 初期状態の上書き（nationId→ownerId, territoryId→ownerId）
+  playerTerritoryIds: string[]; // プレイヤーが最初に持つ領地
+  playerGold: number;
+  victory: ScenarioVictory;
+  rewards: { goldBonus: number; expBonus: number };
+}
+
+export interface Campaign {
+  id: string;
+  title: string;
+  description: string;
+  scenarios: CampaignScenario[];
+}
+
+export interface CampaignProgress {
+  campaignId: string;
+  scenarioIndex: number;
+  playerNationId: string;
+  // charId → {level, exp} 引き継ぎデータ
+  carryOver: Record<string, { level: number; exp: number }>;
+}
+
+// ============================================================
+// マップエディタ
+// ============================================================
+
+export interface EditorCell {
+  id: string;         // "col_row"
+  name: string;
+  ownerId: string;
+  income: number;
+  isCapital: boolean;
+}
+
+export interface EditorNation {
+  id: string;
+  name: string;
+  color: string;
+  faction: string;
+  gold: number;
+}
+
+export interface EditorMap {
+  id: string;
+  mapName: string;
+  cols: number;
+  rows: number;
+  cells: Record<string, EditorCell>;   // "col,row" → cell
+  adjacency: string[];                 // "id1|id2" sorted
+  nations: Record<string, EditorNation>;
+}
+
+// ============================================================
+// ゲーム全体状態
+// ============================================================
 
 export interface GameState {
   phase: GamePhase;
@@ -127,5 +281,16 @@ export interface GameState {
   characters: Record<string, Character>;
   battle: BattleState | null;
   winnerId: string | null;
+  isAIThinking: boolean;
+  actedCharIds: string[];   // 今月移動済み（兵力移動済み）のキャラ
+  // 外交・傭兵・イベント・目標
+  relations: Record<string, DiplomacyRelation>; // nationId → 外交関係
+  objectives: Objective[];
+  mercPool: MercTemplate[];        // 今月採用可能な傭兵
+  mercDurations: Record<string, number>; // charId → 残り月数（0=雇用期間終了）
+  currentEvent: GameEvent | null;  // 今月のランダムイベント（表示後null）
+  // キャンペーン
+  campaignProgress: CampaignProgress | null;
+  campaignScenario: CampaignScenario | null;
   ui: UISelection;
 }

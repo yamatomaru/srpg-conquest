@@ -22,6 +22,7 @@ function placeGroup(
       currentHp: characters[cId].hp,
       hasMoved: false,
       hasActed: false,
+      usedSkill: false,
     };
   });
 }
@@ -35,8 +36,10 @@ export function placeUnits(
   defenderIds: string[],
   characters: Record<string, Character>,
 ): BattleUnit[] {
+  const aliveAttackers = attackerIds.filter((id) => (characters[id]?.hp ?? 0) > 0);
+  const aliveDefenders = defenderIds.filter((id) => (characters[id]?.hp ?? 0) > 0);
   return [
-    ...placeGroup(attackerIds, characters, 'attacker', 0, 1),
-    ...placeGroup(defenderIds, characters, 'defender', 7, -1),
+    ...placeGroup(aliveAttackers, characters, 'attacker', 0, 1),
+    ...placeGroup(aliveDefenders, characters, 'defender', 7, -1),
   ];
 }

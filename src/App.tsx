@@ -1,4 +1,9 @@
 import { useGameStore } from './game/store';
+import NationSelect from './components/NationSelect';
+import CampaignSelect from './components/CampaignSelect';
+import CampaignBriefing from './components/CampaignBriefing';
+import CampaignDebrief from './components/CampaignDebrief';
+import MapEditor from './components/MapEditor';
 import StrategicMap from './components/StrategicMap';
 import TerritoryDetail from './components/TerritoryDetail';
 import TurnControl from './components/TurnControl';
@@ -6,11 +11,24 @@ import GameOverModal from './components/GameOverModal';
 import TacticalControl from './components/TacticalControl';
 import TacticalMap from './components/TacticalMap';
 import BattleLog from './components/BattleLog';
+import InvasionPanel from './components/InvasionPanel';
+import InitiativeBar from './components/InitiativeBar';
+import TransferPanel from './components/TransferPanel';
+import EventModal from './components/EventModal';
+import TroopsList from './components/TroopsList';
+import DiplomacyPanel from './components/DiplomacyPanel';
+import MercenaryPanel from './components/MercenaryPanel';
+import ObjectivesPanel from './components/ObjectivesPanel';
 
 export default function App() {
-  const phase = useGameStore((s) => s.phase);
+  const { phase, ui } = useGameStore();
 
-  // 戦術マップ画面（Step 2 で TacticalMap を追加する）
+  if (phase === 'setup') return <NationSelect />;
+  if (phase === 'campaign_select') return <CampaignSelect />;
+  if (phase === 'campaign_briefing') return <CampaignBriefing />;
+  if (phase === 'campaign_debrief') return <CampaignDebrief />;
+  if (phase === 'map_editor') return <MapEditor />;
+
   if (phase === 'tactical') {
     return (
       <div
@@ -24,6 +42,7 @@ export default function App() {
         }}
       >
         <TacticalControl />
+        <InitiativeBar />
         <TacticalMap />
         <BattleLog />
       </div>
@@ -44,30 +63,28 @@ export default function App() {
       <TurnControl />
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        <div
-          style={{
-            flex: 1,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 16,
-          }}
-        >
-          <StrategicMap />
+        {/* メインマップエリア */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, overflow: 'auto' }}>
+            <StrategicMap />
+          </div>
+          <ObjectivesPanel />
         </div>
 
-        <div
-          style={{
-            width: 260,
-            borderLeft: '1px solid #374151',
-            overflowY: 'auto',
-          }}
-        >
+        {/* 右サイドバー: 領地詳細 */}
+        <div style={{ width: 270, borderLeft: '1px solid #374151', overflowY: 'auto', flexShrink: 0 }}>
           <TerritoryDetail />
         </div>
       </div>
 
+      {/* モーダル・パネル */}
       <GameOverModal />
+      <InvasionPanel />
+      <TransferPanel />
+      <EventModal />
+      {ui.activePanel === 'troops' && <TroopsList />}
+      {ui.activePanel === 'diplomacy' && <DiplomacyPanel />}
+      {ui.activePanel === 'mercenary' && <MercenaryPanel />}
     </div>
   );
 }
