@@ -42,9 +42,8 @@ export default function StrategicMap() {
 
   return (
     <svg
-      width={980}
-      height={700}
-      style={{ background: '#1a1a2e', borderRadius: 8, display: 'block' }}
+      viewBox="0 0 980 700"
+      style={{ background: '#1a1a2e', borderRadius: 8, display: 'block', width: '100%', maxWidth: 980, height: 'auto' }}
     >
       {/* 隣接線 */}
       {lines.map(([aId, bId]) => {

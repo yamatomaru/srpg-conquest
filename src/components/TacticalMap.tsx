@@ -25,6 +25,20 @@ export default function TacticalMap() {
   const { battle, characters, nations, isAIThinking, selectUnit, moveUnit, attackUnit, executeSkill, endBattle } = useGameStore();
   const [popups, setPopups] = useState<Popup[]>([]);
   const prevLogRef = useRef(battle?.recentLog[0] ?? null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+  const svgWRef = useRef(0);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ob = new ResizeObserver(([entry]) => {
+      if (svgWRef.current === 0) return;
+      setScale(Math.min(1, entry.contentRect.width / svgWRef.current));
+    });
+    ob.observe(el);
+    return () => ob.disconnect();
+  }, []);
 
   const pendingEnd = battle?.pendingEnd ?? null;
   useEffect(() => {
@@ -54,6 +68,7 @@ export default function TacticalMap() {
   const H = map.height * CELL;
   const SVG_W = W + PADDING * 2;
   const SVG_H = H + PADDING * 2;
+  svgWRef.current = SVG_W;
 
   const reachableSet = new Set(reachableCells.map((c) => `${c.x},${c.y}`));
   const attackTargetSet = new Set(attackTargets);
@@ -84,8 +99,12 @@ export default function TacticalMap() {
   }
 
   return (
-    <div style={{ overflow: 'auto', display: 'flex', justifyContent: 'center', alignItems: 'center', flex: 1 }}>
-      <div style={{ position: 'relative', display: 'inline-block' }}>
+    <div
+      ref={containerRef}
+      style={{ overflow: 'hidden', flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+    >
+      <div style={{ width: SVG_W * scale, height: SVG_H * scale, position: 'relative', flexShrink: 0 }}>
+        <div style={{ position: 'absolute', top: 0, left: 0, width: SVG_W, height: SVG_H, transformOrigin: 'top left', transform: `scale(${scale})` }}>
         <svg width={SVG_W} height={SVG_H} style={{ display: 'block' }}>
           <g transform={`translate(${PADDING}, ${PADDING})`}>
 
@@ -305,6 +324,7 @@ export default function TacticalMap() {
             {popup.defeated ? `${popup.damage} 撃破！` : `-${popup.damage}`}
           </div>
         ))}
+        </div>
       </div>
     </div>
   );

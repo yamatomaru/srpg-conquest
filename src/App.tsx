@@ -1,4 +1,5 @@
 import { useGameStore } from './game/store';
+import { useIsMobile } from './hooks/useIsMobile';
 import NationSelect from './components/NationSelect';
 import CampaignSelect from './components/CampaignSelect';
 import CampaignBriefing from './components/CampaignBriefing';
@@ -22,6 +23,7 @@ import ObjectivesPanel from './components/ObjectivesPanel';
 
 export default function App() {
   const { phase, ui } = useGameStore();
+  const isMobile = useIsMobile();
 
   if (phase === 'setup') return <NationSelect />;
   if (phase === 'campaign_select') return <CampaignSelect />;
@@ -62,19 +64,27 @@ export default function App() {
     >
       <TurnControl />
 
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden', flexDirection: isMobile ? 'column' : 'row' }}>
         {/* メインマップエリア */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, overflow: 'auto' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: isMobile ? 'auto' : 'hidden', minHeight: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: isMobile ? '8px 4px' : 16 }}>
             <StrategicMap />
           </div>
           <ObjectivesPanel />
+          {/* モバイル: 領地詳細をマップ下に表示 */}
+          {isMobile && (
+            <div style={{ borderTop: '1px solid #374151' }}>
+              <TerritoryDetail />
+            </div>
+          )}
         </div>
 
-        {/* 右サイドバー: 領地詳細 */}
-        <div style={{ width: 270, borderLeft: '1px solid #374151', overflowY: 'auto', flexShrink: 0 }}>
-          <TerritoryDetail />
-        </div>
+        {/* 右サイドバー: 領地詳細（デスクトップのみ） */}
+        {!isMobile && (
+          <div style={{ width: 270, borderLeft: '1px solid #374151', overflowY: 'auto', flexShrink: 0 }}>
+            <TerritoryDetail />
+          </div>
+        )}
       </div>
 
       {/* モーダル・パネル */}
