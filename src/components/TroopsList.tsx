@@ -1,5 +1,6 @@
 import { useGameStore } from '../game/store';
 import { JOBS, JOB_ABBR } from '../data/jobs';
+import { useIsMobile } from '../hooks/useIsMobile';
 
 const JOB_COLOR: Record<string, string> = {
   shielder: '#6b7280', warrior: '#ef4444', spearman: '#f59e0b',
@@ -8,6 +9,7 @@ const JOB_COLOR: Record<string, string> = {
 
 export default function TroopsList() {
   const { nations, territories, characters, actedCharIds, togglePanel } = useGameStore();
+  const isMobile = useIsMobile();
   const player = Object.values(nations).find((n) => n.isPlayer)!;
 
   // Build location map: charId → territory name
@@ -34,7 +36,7 @@ export default function TroopsList() {
       <div
         style={{
           background: '#1f2937', border: '1px solid #374151', borderRadius: 8,
-          width: 700, maxHeight: '85vh', display: 'flex', flexDirection: 'column', color: '#f9fafb',
+          width: isMobile ? '95vw' : 700, maxHeight: '85vh', display: 'flex', flexDirection: 'column', color: '#f9fafb',
         }}
       >
         {/* ヘッダー */}
@@ -43,7 +45,9 @@ export default function TroopsList() {
           <button onClick={() => togglePanel('troops')} style={{ background: 'none', border: 'none', color: '#9ca3af', fontSize: 22, cursor: 'pointer', lineHeight: 1 }}>×</button>
         </div>
 
-        {/* テーブルヘッダー */}
+        {/* テーブルヘッダー + キャラ一覧（横スクロール対応） */}
+        <div style={{ overflowX: 'auto', overflowY: 'auto', flex: 1 }}>
+          <div style={{ minWidth: 580 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '28px 1fr 60px 80px 100px 56px 56px 56px 56px 56px', gap: 0, padding: '8px 16px', background: '#111827', fontSize: 12, color: '#6b7280', borderBottom: '1px solid #374151' }}>
           <span></span>
           <span>名前</span>
@@ -58,7 +62,6 @@ export default function TroopsList() {
         </div>
 
         {/* キャラ一覧 */}
-        <div style={{ overflowY: 'auto', flex: 1 }}>
           {chars.map((ch) => {
             const isDead = ch.hp <= 0;
             const isActed = actedCharIds.includes(ch.id);
@@ -125,6 +128,9 @@ export default function TroopsList() {
             );
           })}
         </div>
+
+          </div>{/* minWidth wrapper */}
+        </div>{/* overflowX wrapper */}
 
         {/* 凡例 */}
         <div style={{ padding: '8px 16px', borderTop: '1px solid #374151', fontSize: 12, color: '#6b7280', display: 'flex', gap: 16 }}>
