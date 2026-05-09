@@ -18,7 +18,7 @@ export default function NationSelect() {
       }}
     >
       <div style={{ textAlign: 'center' }}>
-        <h1 style={{ fontSize: 36, margin: 0, color: '#f9fafb', letterSpacing: 4 }}>SRPG Conquest</h1>
+        <h1 style={{ fontSize: 36, margin: 0, color: '#f9fafb', letterSpacing: 4 }}>MyCryptoConquest</h1>
       </div>
 
       {/* モード選択 */}

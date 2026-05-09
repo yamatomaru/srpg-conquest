@@ -22,7 +22,7 @@ export const TERRITORIES: Record<string, Territory> = {
   // ── ノルダー氏族（北・row0） ─────────────────────────
   // 本拠地: nord3（row0中央、自国のみ接続）
   nord1: {
-    id: 'nord1', name: 'ノルダー辺境',
+    id: 'nord1', name: '北の辺境',
     ownerId: 'nordal', garrisonIds: ['c_nord_1', 'c_nord_2'],
     adjacentTo: ['nord2', 'vies1'],
     position: px(0, 0), income: 30, hasActed: false,
@@ -34,7 +34,7 @@ export const TERRITORIES: Record<string, Territory> = {
     position: px(1, 0), income: 35, hasActed: false,
   },
   nord3: {
-    id: 'nord3', name: 'ノルダー本城',
+    id: 'nord3', name: '北の本城',
     ownerId: 'nordal', garrisonIds: ['c_nord_5', 'c_nord_6'],
     adjacentTo: ['nord2', 'nord4'],
     position: px(2, 0), income: 60, hasActed: false,
@@ -55,7 +55,7 @@ export const TERRITORIES: Record<string, Territory> = {
   // ── ヴィース小公国（西・col0 rows1-4） ───────────────
   // 本拠地: vies3（col0中央、自国のみ接続）
   vies1: {
-    id: 'vies1', name: 'ヴィース城塞',
+    id: 'vies1', name: '西の城砦',
     ownerId: 'wess', garrisonIds: ['c_vies_1', 'c_vies_2'],
     adjacentTo: ['nord1', 'alba1', 'vies2'],
     position: px(0, 1), income: 40, hasActed: false,
@@ -67,7 +67,7 @@ export const TERRITORIES: Record<string, Territory> = {
     position: px(0, 2), income: 25, hasActed: false,
   },
   vies3: {
-    id: 'vies3', name: 'ヴィース王城',
+    id: 'vies3', name: '西の王城',
     ownerId: 'wess', garrisonIds: ['c_vies_5', 'c_vies_6'],
     adjacentTo: ['vies2', 'vies4'],
     position: px(0, 3), income: 55, hasActed: false,
@@ -88,7 +88,7 @@ export const TERRITORIES: Record<string, Territory> = {
   // ── アルバニア王国（中央） ───────────────────────────
   // 本拠地: alba5（中央内陸、自国のみ接続）
   alba1: {
-    id: 'alba1', name: 'アルバニア城門',
+    id: 'alba1', name: '中の城門',
     ownerId: 'albania', garrisonIds: ['c_alba_1', 'c_alba_2'],
     adjacentTo: ['nord2', 'vies1', 'alba2', 'alba4'],
     position: px(1, 1), income: 40, hasActed: false,
@@ -112,7 +112,7 @@ export const TERRITORIES: Record<string, Territory> = {
     position: px(1, 2), income: 35, hasActed: false,
   },
   alba5: {
-    id: 'alba5', name: 'アルバニア王城',
+    id: 'alba5', name: '中の王城',
     ownerId: 'albania', garrisonIds: ['c_alba_9', 'c_alba_10'],
     adjacentTo: ['alba2', 'alba4'],
     position: px(2, 2), income: 60, hasActed: false,
@@ -121,7 +121,7 @@ export const TERRITORIES: Record<string, Territory> = {
   // ── マグナス魔導院（東・col4 rows1-4 + magn2） ────────
   // 本拠地: magn4（col4中央、自国のみ接続）
   magn1: {
-    id: 'magn1', name: 'マグナス聖塔',
+    id: 'magn1', name: '東の聖塔',
     ownerId: 'magnus', garrisonIds: ['c_magn_1', 'c_magn_2'],
     adjacentTo: ['nord5', 'alba3', 'magn3'],
     position: px(4, 1), income: 45, hasActed: false,
@@ -139,7 +139,7 @@ export const TERRITORIES: Record<string, Territory> = {
     position: px(4, 2), income: 40, hasActed: false,
   },
   magn4: {
-    id: 'magn4', name: 'マグナス魔都',
+    id: 'magn4', name: '東の魔都',
     ownerId: 'magnus', garrisonIds: ['c_magn_7', 'c_magn_8'],
     adjacentTo: ['magn3', 'magn5'],
     position: px(4, 3), income: 60, hasActed: false,
@@ -154,13 +154,13 @@ export const TERRITORIES: Record<string, Territory> = {
   // ── シルヴァン同盟（南・rows3-4） ────────────────────
   // 本拠地: silv2（南中央内陸、自国のみ接続）
   silv1: {
-    id: 'silv1', name: 'シルヴァン森',
+    id: 'silv1', name: '南の森',
     ownerId: 'sylvan', garrisonIds: ['c_silv_1', 'c_silv_2'],
     adjacentTo: ['alba4', 'vies5', 'silv2'],
     position: px(1, 3), income: 40, hasActed: false,
   },
   silv2: {
-    id: 'silv2', name: 'シルヴァン聖樹',
+    id: 'silv2', name: '聖なる樹',
     ownerId: 'sylvan', garrisonIds: ['c_silv_3', 'c_silv_4'],
     adjacentTo: ['silv1', 'silv3', 'silv4'],
     position: px(2, 3), income: 55, hasActed: false,
