@@ -76,7 +76,7 @@ export interface InvasionPending {
   toTerritoryId: string;
 }
 
-export type ActivePanel = 'none' | 'troops' | 'diplomacy' | 'mercenary' | 'objectives';
+export type ActivePanel = 'none' | 'troops' | 'diplomacy' | 'mercenary' | 'objectives' | 'simulation';
 
 export interface UISelection {
   selectedTerritoryId: string | null;
@@ -282,6 +282,8 @@ export interface GameState {
   battle: BattleState | null;
   winnerId: string | null;
   isAIThinking: boolean;
+  autoPlay: boolean;       // AI が player 側も操作
+  fastForward: boolean;    // 全AIディレイを短縮
   actedCharIds: string[];   // 今月移動済み（兵力移動済み）のキャラ
   // 外交・傭兵・イベント・目標
   relations: Record<string, DiplomacyRelation>; // nationId → 外交関係

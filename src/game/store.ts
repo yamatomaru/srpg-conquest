@@ -100,6 +100,8 @@ function buildScenarioState(
     battle: null,
     winnerId: null,
     isAIThinking: false,
+    autoPlay: false,
+    fastForward: false,
     actedCharIds: [],
     relations: buildRelations(newNations as typeof NATIONS, playerNationId),
     objectives: [...INITIAL_OBJECTIVES],
@@ -124,6 +126,8 @@ const getInitialState = (): GameState => {
     battle: null,
     winnerId: null,
     isAIThinking: false,
+    autoPlay: false,
+    fastForward: false,
     actedCharIds: [],
     relations: {},
     objectives: [...INITIAL_OBJECTIVES],
@@ -175,6 +179,8 @@ interface GameActions {
   dismissEvent: () => void;
   // パネル
   togglePanel: (panel: GameState['ui']['activePanel']) => void;
+  toggleAutoPlay: () => void;
+  toggleFastForward: () => void;
   runTacticalAI: () => void;
   _runStrategicAI: (nationIds: string[], idx: number) => void;
 }
@@ -1313,9 +1319,24 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       ui: { ...state.ui, activePanel: state.ui.activePanel === panel ? 'none' : panel },
     })),
 
+  toggleAutoPlay: () => {
+    const newVal = !get().autoPlay;
+    set({ autoPlay: newVal });
+    // 戦略フェーズでプレイヤーのターン中なら即座にAIを起動
+    if (newVal) {
+      const s = get();
+      if (s.phase === 'strategic' && !s.isAIThinking && !s.winnerId) {
+        setTimeout(() => get().endPlayerTurn(), 100);
+      }
+    }
+  },
+
+  toggleFastForward: () => set((state) => ({ fastForward: !state.fastForward })),
+
   // ── AI ────────────────────────────────────────────
 
   runTacticalAI: () => {
+    const d = (ms: number) => get().fastForward ? Math.min(30, ms) : ms;
     const executeAIUnit = () => {
       const state = get();
       if (!state.battle || state.battle.pendingEnd !== null) {
@@ -1342,11 +1363,11 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
           const nextId = s2.battle.initiativeOrder[s2.battle.initiativeIndex];
           const nextUnit = s2.battle.units.find(u => u.characterId === nextId);
           if (nextUnit && nextUnit.side !== s2.battle.playerSide) {
-            setTimeout(executeAIUnit, 300);
+            setTimeout(executeAIUnit, d(300));
           } else {
             set({ isAIThinking: false });
           }
-        }, 100);
+        }, d(100));
         return;
       }
 
@@ -1366,18 +1387,17 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
             const targets = getAttackTargets(freshUnit, freshCh, s.battle.units);
             if (targets.length > 0) {
               get().attackUnit(freshUnit.characterId, targets[0]);
-              // attackUnit が advance を呼ぶので、次の AI チェックはそちらに任せる
               setTimeout(() => {
                 const s2 = get();
                 if (!s2.battle || s2.battle.pendingEnd !== null) { set({ isAIThinking: false }); return; }
                 const nextId = s2.battle.initiativeOrder[s2.battle.initiativeIndex];
                 const nextUnit = s2.battle.units.find(u => u.characterId === nextId);
                 if (nextUnit && nextUnit.side !== s2.battle.playerSide) {
-                  setTimeout(executeAIUnit, 400);
+                  setTimeout(executeAIUnit, d(400));
                 } else {
                   set({ isAIThinking: false });
                 }
-              }, 700);
+              }, d(700));
             } else {
               get().endUnitTurn(freshUnit.characterId);
               setTimeout(() => {
@@ -1386,27 +1406,24 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
                 const nextId = s2.battle.initiativeOrder[s2.battle.initiativeIndex];
                 const nextUnit = s2.battle.units.find(u => u.characterId === nextId);
                 if (nextUnit && nextUnit.side !== s2.battle.playerSide) {
-                  setTimeout(executeAIUnit, 300);
+                  setTimeout(executeAIUnit, d(300));
                 } else {
                   set({ isAIThinking: false });
                 }
-              }, 100);
+              }, d(100));
             }
           } else {
-            // moveUnit が内部で doAdvanceInitiative を呼んだ場合（攻撃対象なし）
-            // isAIThinking: true のため moveUnit の setTimeout(0) はスキップされているので
-            // ここで次のユニットが AI 側かどうかを確認して AI を継続する
             const s2 = get();
             if (!s2.battle || s2.battle.pendingEnd !== null) { set({ isAIThinking: false }); return; }
             const nextId = s2.battle.initiativeOrder[s2.battle.initiativeIndex];
             const nextUnit = s2.battle.units.find((u) => u.characterId === nextId);
             if (nextUnit && nextUnit.side !== s2.battle.playerSide) {
-              setTimeout(executeAIUnit, 300);
+              setTimeout(executeAIUnit, d(300));
             } else {
               set({ isAIThinking: false });
             }
           }
-        }, 400);
+        }, d(400));
       } else if (action.type === 'attack') {
         get().attackUnit(action.attackerId, action.targetId);
         setTimeout(() => {
@@ -1415,11 +1432,11 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
           const nextId = s2.battle.initiativeOrder[s2.battle.initiativeIndex];
           const nextUnit = s2.battle.units.find(u => u.characterId === nextId);
           if (nextUnit && nextUnit.side !== s2.battle.playerSide) {
-            setTimeout(executeAIUnit, 500);
+            setTimeout(executeAIUnit, d(500));
           } else {
             set({ isAIThinking: false });
           }
-        }, 700);
+        }, d(700));
       } else {
         get().endUnitTurn(currentUnit.characterId);
         setTimeout(() => {
@@ -1428,19 +1445,48 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
           const nextId = s2.battle.initiativeOrder[s2.battle.initiativeIndex];
           const nextUnit = s2.battle.units.find(u => u.characterId === nextId);
           if (nextUnit && nextUnit.side !== s2.battle.playerSide) {
-            setTimeout(executeAIUnit, 300);
+            setTimeout(executeAIUnit, d(300));
           } else {
             set({ isAIThinking: false });
           }
-        }, 100);
+        }, d(100));
       }
     };
 
-    setTimeout(executeAIUnit, 500);
+    setTimeout(executeAIUnit, d(500));
   },
 
   _runStrategicAI: (nationIds, idx) => {
+    const d = (ms: number) => get().fastForward ? Math.min(30, ms) : ms;
+
     if (idx >= nationIds.length) {
+      const s = get();
+      if (s.autoPlay && !s.winnerId) {
+        // プレイヤー国もAIとして動かして自動月送り
+        const player = Object.values(s.nations).find((n) => n.isPlayer)!;
+        if (!player.defeated) {
+          const transfers = decideAITransfers(player.id, s);
+          if (transfers.length > 0) {
+            const updTerr = { ...s.territories };
+            for (const tr of transfers) {
+              const from = updTerr[tr.fromId];
+              const to = updTerr[tr.toId];
+              updTerr[tr.fromId] = { ...from, garrisonIds: from.garrisonIds.filter((id) => !tr.charIds.includes(id)), hasActed: true };
+              updTerr[tr.toId] = { ...to, garrisonIds: [...to.garrisonIds, ...tr.charIds] };
+            }
+            set({ territories: updTerr });
+          }
+          const action = decideAINationAction(player.id, get());
+          if (action.type === 'invade') {
+            const freshS = get();
+            const result = resolveAutoBattle(freshS, action.fromId, action.toId);
+            const patch = applyStrategicBattleResult(freshS, action.fromId, action.toId, result.winnerSide, result.survivingAttackerIds);
+            set(patch as Partial<GameState & GameActions>);
+          }
+        }
+        setTimeout(() => get().endPlayerTurn(), d(500));
+        return;
+      }
       set({ isAIThinking: false });
       return;
     }
@@ -1488,23 +1534,31 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         if (state.territories[toId].garrisonIds.length === 0) {
           const patch = applyStrategicBattleResult(state, fromId, toId, 'attacker', state.territories[fromId].garrisonIds);
           set(patch as Partial<GameState & GameActions>);
-          setTimeout(() => get()._runStrategicAI(nationIds, idx + 1), 600);
+          setTimeout(() => get()._runStrategicAI(nationIds, idx + 1), d(600));
+          return;
+        }
+        // autoPlay 中は戦術マップを経由せず自動解決
+        if (get().autoPlay) {
+          const result = resolveAutoBattle(state, fromId, toId);
+          const patch = applyStrategicBattleResult(state, fromId, toId, result.winnerSide, result.survivingAttackerIds);
+          set(patch as Partial<GameState & GameActions>);
+          setTimeout(() => get()._runStrategicAI(nationIds, idx + 1), d(600));
           return;
         }
         get().executeAIInvasion(fromId, toId);
         setTimeout(() => {
           set({ isAIThinking: true });
           get().runTacticalAI();
-        }, 600);
+        }, d(600));
         return;
       }
 
       const result = resolveAutoBattle(state, fromId, toId);
       const patch = applyStrategicBattleResult(state, fromId, toId, result.winnerSide, result.survivingAttackerIds);
       set(patch as Partial<GameState & GameActions>);
-      setTimeout(() => get()._runStrategicAI(nationIds, idx + 1), 600);
+      setTimeout(() => get()._runStrategicAI(nationIds, idx + 1), d(600));
     } else {
-      setTimeout(() => get()._runStrategicAI(nationIds, idx + 1), 200);
+      setTimeout(() => get()._runStrategicAI(nationIds, idx + 1), d(200));
     }
   },
 }));

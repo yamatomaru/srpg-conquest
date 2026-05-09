@@ -20,6 +20,7 @@ import TroopsList from './components/TroopsList';
 import DiplomacyPanel from './components/DiplomacyPanel';
 import MercenaryPanel from './components/MercenaryPanel';
 import ObjectivesPanel from './components/ObjectivesPanel';
+import SimulationPanel from './components/SimulationPanel';
 
 export default function App() {
   const { phase, ui } = useGameStore();
@@ -95,6 +96,7 @@ export default function App() {
       {ui.activePanel === 'troops' && <TroopsList />}
       {ui.activePanel === 'diplomacy' && <DiplomacyPanel />}
       {ui.activePanel === 'mercenary' && <MercenaryPanel />}
+      {ui.activePanel === 'simulation' && <SimulationPanel />}
     </div>
   );
 }

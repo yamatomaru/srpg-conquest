@@ -4,7 +4,8 @@ import { useIsMobile } from '../hooks/useIsMobile';
 const SAVE_KEY = 'srpg-conquest-save';
 
 export default function TurnControl() {
-  const { month, currentNationId, nations, winnerId, isAIThinking, ui, endPlayerTurn, saveGame, loadGame, reset, togglePanel } =
+  const { month, currentNationId, nations, winnerId, isAIThinking, autoPlay, fastForward, ui,
+    endPlayerTurn, saveGame, loadGame, reset, togglePanel, toggleAutoPlay, toggleFastForward } =
     useGameStore();
   const isMobile = useIsMobile();
   const currentNation = nations[currentNationId];
@@ -71,13 +72,33 @@ export default function TurnControl() {
             style={{ ...btnStyle(ui.activePanel === 'mercenary' ? '#92400e' : '#374151', isPlayerTurn) }}
             title="傭兵雇用">💰 傭兵</button>
           {!isMobile && <div style={{ width: 1, background: '#374151', alignSelf: 'stretch', margin: '0 4px' }} />}
+          <button
+            onClick={() => togglePanel('simulation')}
+            style={{ ...btnStyle(ui.activePanel === 'simulation' ? '#7c3aed' : '#374151') }}
+            title="シミュレーション">🎲</button>
+          {!isMobile && <div style={{ width: 1, background: '#374151', alignSelf: 'stretch', margin: '0 4px' }} />}
           <button onClick={saveGame} disabled={!canEndTurn} style={btnStyle('#065f46', canEndTurn)} title="セーブ">セーブ</button>
           <button onClick={loadGame} disabled={!hasSave} style={btnStyle('#1e3a5f', hasSave)} title="ロード">ロード</button>
           <button onClick={reset} style={btnStyle('#4b5563')} title="リセット">リセット</button>
           {!isMobile && <div style={{ width: 1, background: '#374151', alignSelf: 'stretch', margin: '0 4px' }} />}
-          <button onClick={endPlayerTurn} disabled={!canEndTurn} style={btnStyle('#2563eb', canEndTurn)}>
-            ターン終了
-          </button>
+          {autoPlay && (
+            <button
+              onClick={toggleFastForward}
+              style={{ ...btnStyle(fastForward ? '#d97706' : '#374151') }}
+              title="早送り"
+            >⏩</button>
+          )}
+          <button
+            onClick={toggleAutoPlay}
+            disabled={winnerId !== null}
+            style={{ ...btnStyle(autoPlay ? '#dc2626' : '#374151', winnerId === null) }}
+            title={autoPlay ? 'オートプレイ停止' : 'オートプレイ開始'}
+          >{autoPlay ? '⏹ AUTO' : '▶ AUTO'}</button>
+          {!autoPlay && (
+            <button onClick={endPlayerTurn} disabled={!canEndTurn} style={btnStyle('#2563eb', canEndTurn)}>
+              ターン終了
+            </button>
+          )}
         </div>
       </div>
 
