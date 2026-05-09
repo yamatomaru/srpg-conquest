@@ -25,10 +25,21 @@ export default function TerritoryDetail() {
   const nation = nations[territory.ownerId];
   const playerNation = Object.values(nations).find((n) => n.isPlayer)!;
   const isPlayerOwned = territory.ownerId === playerNation.id;
-  const canInvade = isPlayerOwned && !territory.hasActed && territory.garrisonIds.length > 0;
   const isInvasionSource = invasionMode?.fromTerritoryId === selectedTerritoryId;
   const isTransferSource = transferMode?.fromTerritoryId === selectedTerritoryId;
-  const canTransfer = isPlayerOwned && !territory.hasActed && territory.garrisonIds.length > 0;
+
+  const hasAdjacentEnemy = territory.adjacentTo.some((adjId) => {
+    const adj = territories[adjId];
+    const adjNation = nations[adj?.ownerId];
+    return adj && adj.ownerId !== playerNation.id && !adjNation?.defeated;
+  });
+  const hasAdjacentFriendly = territory.adjacentTo.some((adjId) => {
+    const adj = territories[adjId];
+    return adj && adj.ownerId === playerNation.id;
+  });
+
+  const canInvade = isPlayerOwned && !territory.hasActed && territory.garrisonIds.length > 0 && hasAdjacentEnemy;
+  const canTransfer = isPlayerOwned && !territory.hasActed && territory.garrisonIds.length > 0 && hasAdjacentFriendly;
 
   return (
     <div style={{ padding: 16 }}>
@@ -48,6 +59,44 @@ export default function TerritoryDetail() {
         </div>
         <div>収入: ¥{territory.income} / 月</div>
         {territory.hasActed && <div style={{ color: '#ef4444', fontSize: 12 }}>行動済み</div>}
+      </div>
+
+      {/* アクションボタン（ユニット一覧の上に配置してファーストビューに収める） */}
+      <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {isInvasionSource ? (
+          <button
+            onClick={() => cancelInvasion()}
+            style={{ padding: '10px 12px', background: '#4b5563', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 14, fontWeight: 'bold' }}
+          >
+            侵攻キャンセル
+          </button>
+        ) : isTransferSource ? (
+          <button
+            onClick={() => cancelTransfer()}
+            style={{ padding: '10px 12px', background: '#4b5563', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 14, fontWeight: 'bold' }}
+          >
+            移動キャンセル
+          </button>
+        ) : (
+          <>
+            {canInvade && (
+              <button
+                onClick={() => startInvasion(selectedTerritoryId)}
+                style={{ padding: '10px 12px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 14, fontWeight: 'bold' }}
+              >
+                侵攻する
+              </button>
+            )}
+            {canTransfer && (
+              <button
+                onClick={() => startTransfer(selectedTerritoryId)}
+                style={{ padding: '10px 12px', background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 14, fontWeight: 'bold' }}
+              >
+                兵力移動
+              </button>
+            )}
+          </>
+        )}
       </div>
 
       <div style={{ marginTop: 12 }}>
@@ -122,42 +171,6 @@ export default function TerritoryDetail() {
         )}
       </div>
 
-      <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {isInvasionSource ? (
-          <button
-            onClick={() => cancelInvasion()}
-            style={{ padding: '7px 12px', background: '#4b5563', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13 }}
-          >
-            侵攻キャンセル
-          </button>
-        ) : isTransferSource ? (
-          <button
-            onClick={() => cancelTransfer()}
-            style={{ padding: '7px 12px', background: '#4b5563', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13 }}
-          >
-            移動キャンセル
-          </button>
-        ) : (
-          <>
-            {canInvade && (
-              <button
-                onClick={() => startInvasion(selectedTerritoryId)}
-                style={{ padding: '7px 12px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13 }}
-              >
-                侵攻する
-              </button>
-            )}
-            {canTransfer && (
-              <button
-                onClick={() => startTransfer(selectedTerritoryId)}
-                style={{ padding: '7px 12px', background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 13 }}
-              >
-                兵力移動
-              </button>
-            )}
-          </>
-        )}
-      </div>
     </div>
   );
 }

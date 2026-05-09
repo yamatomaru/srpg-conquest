@@ -1371,7 +1371,18 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
               }, 100);
             }
           } else {
-            set({ isAIThinking: false });
+            // moveUnit が内部で doAdvanceInitiative を呼んだ場合（攻撃対象なし）
+            // isAIThinking: true のため moveUnit の setTimeout(0) はスキップされているので
+            // ここで次のユニットが AI 側かどうかを確認して AI を継続する
+            const s2 = get();
+            if (!s2.battle || s2.battle.pendingEnd !== null) { set({ isAIThinking: false }); return; }
+            const nextId = s2.battle.initiativeOrder[s2.battle.initiativeIndex];
+            const nextUnit = s2.battle.units.find((u) => u.characterId === nextId);
+            if (nextUnit && nextUnit.side !== s2.battle.playerSide && !nextUnit.hasActed) {
+              setTimeout(executeAIUnit, 300);
+            } else {
+              set({ isAIThinking: false });
+            }
           }
         }, 400);
       } else if (action.type === 'attack') {
