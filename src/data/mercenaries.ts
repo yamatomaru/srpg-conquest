@@ -21,88 +21,88 @@ const BASE_MERCS: MercTemplate[] = [
 export const MCH_MERCS: MercTemplate[] = [
   // ── 朱雀 ──────────────────────────────────────
   {
-    id: 'mch_01', name: 'アレクサンドロス大王', jobId: 'warrior',  level: 7, cost: 450, faction: '朱雀',
-    isMCH: true, iconEmoji: '🏛', imageUrl: `${CDN}/4050.png`,
+    id: 'mch_01', name: 'アレキサンダー',     jobId: 'warrior',  level: 7, cost: 450, faction: '朱雀',
+    isMCH: true, iconEmoji: '🏛', imageUrl: `${CDN}/5017.png`,
   },
   {
-    id: 'mch_02', name: 'ユリウス・カエサル', jobId: 'shielder', level: 5, cost: 280, faction: '朱雀',
-    isMCH: true, iconEmoji: '🦅', imageUrl: `${CDN}/3031.png`,
+    id: 'mch_02', name: 'カエサル',           jobId: 'shielder', level: 5, cost: 280, faction: '朱雀',
+    isMCH: true, iconEmoji: '🦅', imageUrl: `${CDN}/4026.png`,
   },
   {
     id: 'mch_03', name: 'ハンニバル',         jobId: 'warrior',  level: 6, cost: 350, faction: '朱雀',
-    isMCH: true, iconEmoji: '🐘', imageUrl: `${CDN}/4034.png`,
+    isMCH: true, iconEmoji: '🐘', imageUrl: `${CDN}/4047.png`,
   },
   {
     id: 'mch_04', name: 'ブーディカ',         jobId: 'spearman', level: 6, cost: 340, faction: '朱雀',
-    isMCH: true, iconEmoji: '🔥', imageUrl: `${CDN}/4042.png`,
+    isMCH: true, iconEmoji: '🔥', imageUrl: `${CDN}/4057.png`,
   },
   // ── 青龍 ──────────────────────────────────────
   {
     id: 'mch_05', name: 'クレオパトラ',       jobId: 'mage',     level: 6, cost: 360, faction: '青龍',
-    isMCH: true, iconEmoji: '🐍', imageUrl: `${CDN}/4049.png`,
+    isMCH: true, iconEmoji: '🐍', imageUrl: `${CDN}/5016.png`,
   },
   {
     id: 'mch_06', name: 'ニコラ・テスラ',     jobId: 'mage',     level: 5, cost: 290, faction: '青龍',
-    isMCH: true, iconEmoji: '⚡', imageUrl: `${CDN}/4017.png`,
+    isMCH: true, iconEmoji: '⚡', imageUrl: `${CDN}/4041.png`,
   },
   {
     id: 'mch_07', name: '卑弥呼',             jobId: 'mage',     level: 7, cost: 480, faction: '青龍',
-    isMCH: true, iconEmoji: '🌙', imageUrl: `${CDN}/4043.png`,
+    isMCH: true, iconEmoji: '🌙', imageUrl: `${CDN}/5011.png`,
   },
   {
     id: 'mch_08', name: 'フランシス・ドレーク', jobId: 'archer',  level: 5, cost: 270, faction: '青龍',
-    isMCH: true, iconEmoji: '⛵', imageUrl: `${CDN}/4037.png`,
+    isMCH: true, iconEmoji: '⛵', imageUrl: `${CDN}/4052.png`,
   },
   // ── 玄武 ──────────────────────────────────────
   {
     id: 'mch_09', name: '源義経',             jobId: 'archer',   level: 6, cost: 330, faction: '玄武',
-    isMCH: true, iconEmoji: '🏹', imageUrl: `${CDN}/4056.png`,
+    isMCH: true, iconEmoji: '🏹', imageUrl: `${CDN}/5019.png`,
   },
   {
     id: 'mch_10', name: '武田信玄',           jobId: 'warrior',  level: 7, cost: 460, faction: '玄武',
-    isMCH: true, iconEmoji: '🐯', imageUrl: `${CDN}/3030.png`,
+    isMCH: true, iconEmoji: '🐯', imageUrl: `${CDN}/4025.png`,
   },
   {
     id: 'mch_11', name: '上杉謙信',           jobId: 'spearman', level: 6, cost: 350, faction: '玄武',
-    isMCH: true, iconEmoji: '⛩', imageUrl: `${CDN}/4003.png`,
+    isMCH: true, iconEmoji: '⛩', imageUrl: `${CDN}/4032.png`,
   },
   {
-    id: 'mch_12', name: '宮本武蔵',           jobId: 'warrior',  level: 7, cost: 460, faction: '玄武',
-    isMCH: true, iconEmoji: '⚔', imageUrl: `${CDN}/11008.png`,
+    id: 'mch_12', name: '織田信長',           jobId: 'warrior',  level: 7, cost: 460, faction: '玄武',
+    isMCH: true, iconEmoji: '⚔', imageUrl: `${CDN}/5001.png`,
   },
   // ── 黄竜 ──────────────────────────────────────
   {
     id: 'mch_13', name: 'チンギス・ハン',     jobId: 'spearman', level: 7, cost: 470, faction: '黄竜',
-    isMCH: true, iconEmoji: '🐎', imageUrl: `${CDN}/4045.png`,
+    isMCH: true, iconEmoji: '🐎', imageUrl: `${CDN}/5013.png`,
   },
   {
     id: 'mch_14', name: '諸葛亮',             jobId: 'mage',     level: 6, cost: 360, faction: '黄竜',
-    isMCH: true, iconEmoji: '📜', imageUrl: `${CDN}/4048.png`,
+    isMCH: true, iconEmoji: '📜', imageUrl: `${CDN}/5015.png`,
   },
   {
     id: 'mch_15', name: '関羽',               jobId: 'warrior',  level: 6, cost: 340, faction: '黄竜',
-    isMCH: true, iconEmoji: '🌙', imageUrl: `${CDN}/4009.png`,
+    isMCH: true, iconEmoji: '🌙', imageUrl: `${CDN}/4037.png`,
   },
   {
     id: 'mch_16', name: '趙雲',               jobId: 'spearman', level: 5, cost: 290, faction: '黄竜',
-    isMCH: true, iconEmoji: '🐉', imageUrl: `${CDN}/3011.png`,
+    isMCH: true, iconEmoji: '🐉', imageUrl: `${CDN}/4023.png`,
   },
   // ── 白虎 ──────────────────────────────────────
   {
     id: 'mch_17', name: 'ランスロット',       jobId: 'shielder', level: 7, cost: 480, faction: '白虎',
-    isMCH: true, iconEmoji: '⚜', imageUrl: `${CDN}/4030.png`,
+    isMCH: true, iconEmoji: '⚜', imageUrl: `${CDN}/4045.png`,
   },
   {
-    id: 'mch_18', name: 'スキピオ・アフリカヌス', jobId: 'warrior', level: 6, cost: 350, faction: '白虎',
-    isMCH: true, iconEmoji: '🏰', imageUrl: `${CDN}/11006.png`,
+    id: 'mch_18', name: 'アーサー王',         jobId: 'warrior',  level: 6, cost: 350, faction: '白虎',
+    isMCH: true, iconEmoji: '🏰', imageUrl: `${CDN}/5006.png`,
   },
   {
     id: 'mch_19', name: '巴御前',             jobId: 'spearman', level: 6, cost: 360, faction: '白虎',
-    isMCH: true, iconEmoji: '🛡', imageUrl: `${CDN}/3006.png`,
+    isMCH: true, iconEmoji: '🛡', imageUrl: `${CDN}/4022.png`,
   },
   {
-    id: 'mch_20', name: '那須与一',           jobId: 'archer',   level: 5, cost: 280, faction: '白虎',
-    isMCH: true, iconEmoji: '🎯', imageUrl: `${CDN}/11001.png`,
+    id: 'mch_20', name: 'リチャード1世',      jobId: 'archer',   level: 5, cost: 280, faction: '白虎',
+    isMCH: true, iconEmoji: '🎯', imageUrl: `${CDN}/5023.png`,
   },
 ];
 
