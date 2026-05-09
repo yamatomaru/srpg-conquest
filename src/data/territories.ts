@@ -76,13 +76,13 @@ export const TERRITORIES: Record<string, Territory> = {
     id: 'vies4', name: '砂礫の荒野',
     ownerId: 'wess', garrisonIds: ['c_vies_7', 'c_vies_8'],
     adjacentTo: ['vies3', 'vies5'],
-    position: px(0, 4), income: 20, hasActed: false,
+    position: px(0, 4), income: 35, hasActed: false,
   },
   vies5: {
     id: 'vies5', name: '葦の渡し',
     ownerId: 'wess', garrisonIds: ['c_vies_9', 'c_vies_10'],
     adjacentTo: ['vies4', 'silv1', 'silv4'],
-    position: px(1, 4), income: 20, hasActed: false,
+    position: px(1, 4), income: 35, hasActed: false,
   },
 
   // ── アルバニア王国（中央） ───────────────────────────

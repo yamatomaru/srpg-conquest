@@ -728,7 +728,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         const ch = newCharacters[cId];
         if (ch.hp >= ch.maxHp) return;
         const wasZero = ch.hp === 0;
-        const recovered = Math.min(ch.maxHp, ch.hp + Math.ceil(ch.maxHp * 0.5));
+        const recovered = Math.min(ch.maxHp, ch.hp + Math.ceil(ch.maxHp * 0.33));
         newCharacters[cId] = { ...ch, hp: recovered };
 
         // hp=0 → 回復 → 本拠地ガリソンに帰還（本拠地が自国のとき）

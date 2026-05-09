@@ -176,7 +176,7 @@ function advanceMonth(state: SimState): void {
   Object.values(state.territories).forEach((t) => t.garrisonIds.forEach((id) => garrisonedSet.add(id)));
   for (const [id, ch] of Object.entries(state.characters)) {
     if (ch.hp < ch.maxHp) {
-      const recovered = Math.min(ch.maxHp, ch.hp + Math.ceil(ch.maxHp * 0.5));
+      const recovered = Math.min(ch.maxHp, ch.hp + Math.ceil(ch.maxHp * 0.33));
       const wasZero = ch.hp <= 0;
       state.characters[id] = { ...ch, hp: recovered };
 

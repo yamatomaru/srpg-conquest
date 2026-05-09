@@ -34,26 +34,28 @@ function getEnemyAdj(from: Territory, nationId: string, state: GameState, skipNa
     });
 }
 
-// ── 朱雀：流動的・読めない ────────────────────────────
+// ── 朱雀：機を見て最弱を叩く・適度な読めなさ ─────────
 
 function decideSuzaku(nationId: string, state: GameState, alliancePlayerId?: string): StrategicAction {
   const mine = getMyTerritories(nationId, state);
   const candidates: { from: string; to: string; score: number }[] = [];
 
   for (const from of mine) {
+    const myCount = liveCount(from, state);
     for (const adj of getEnemyAdj(from, nationId, state, alliancePlayerId)) {
-      // スコアにランダム性を加えて読めない行動に
-      const random = Math.random() * 4 - 2;
-      const score = adj.garrisonIds.length - liveCount(from, state) + random;
+      const enemyCount = liveCount(adj, state);
+      // 敵の 1.25 倍以上の兵がいないと攻めない
+      if (myCount < enemyCount * 0.8) continue;
+      const random = Math.random() * 2 - 1; // ±1 のランダム性
+      const score = enemyCount - myCount + random;
       candidates.push({ from: from.id, to: adj.id, score });
     }
   }
   if (candidates.length === 0) return { type: 'pass' };
 
-  // ランダム性を持ちつつ有利な方向へ
   candidates.sort((a, b) => a.score - b.score);
-  // 上位3択からランダムに選ぶ
-  const pick = candidates[Math.floor(Math.random() * Math.min(3, candidates.length))];
+  // 上位2択から選ぶ（適度な変動）
+  const pick = candidates[Math.floor(Math.random() * Math.min(2, candidates.length))];
   return { type: 'invade', fromId: pick.from, toId: pick.to };
 }
 
@@ -69,8 +71,8 @@ function decideSeiryu(nationId: string, state: GameState, alliancePlayerId?: str
       .reduce((es, adj) => es + liveCount(adj, state), 0);
   }, 0);
 
-  // 兵数比が 1.4 倍超えたら攻勢
-  if (myTotal < enemyBorderTotal * 1.4) return { type: 'pass' };
+  // 兵数比が 1.2 倍超えたら攻勢（1.4 から引き下げ）
+  if (myTotal < enemyBorderTotal * 1.2) return { type: 'pass' };
 
   let best = { from: '', to: '', score: Infinity };
   for (const from of mine) {
@@ -93,8 +95,8 @@ function decideGenbu(nationId: string, state: GameState, alliancePlayerId?: stri
     for (const adj of getEnemyAdj(from, nationId, state, alliancePlayerId)) {
       const myCount = liveCount(from, state);
       const enemyCount = liveCount(adj, state);
-      // 自軍が 2 倍以上のときだけ攻める
-      if (myCount < enemyCount * 2) continue;
+      // 自軍が 1.5 倍以上のときだけ攻める（2倍から引き下げ）
+      if (myCount < enemyCount * 1.5) continue;
       const score = enemyCount - myCount;
       if (score < best.score) { best = { from: from.id, to: adj.id, score }; }
     }
@@ -131,12 +133,15 @@ function decideKoryu(nationId: string, state: GameState, alliancePlayerId?: stri
 function decideByakko(nationId: string, state: GameState, alliancePlayerId?: string): StrategicAction {
   const mine = getMyTerritories(nationId, state);
 
-  // 兵数有利不利に関わらず常に最弱の敵へ攻め込む
+  // 最弱の敵へ積極的に攻め込む（自滅防止のため最低限の比率チェック）
   let best = { from: '', to: '', score: Infinity };
   for (const from of mine) {
+    const myCount = liveCount(from, state);
     for (const adj of getEnemyAdj(from, nationId, state, alliancePlayerId)) {
-      // 敵が少ないほど優先（自軍の多さは考慮しない）
-      const score = liveCount(adj, state);
+      const enemyCount = liveCount(adj, state);
+      // 敵が自軍の 1.6 倍を超える場合はスキップ（自滅防止）
+      if (myCount < enemyCount * 0.6) continue;
+      const score = enemyCount;
       if (score < best.score) { best = { from: from.id, to: adj.id, score }; }
     }
   }
