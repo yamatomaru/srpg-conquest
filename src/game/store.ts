@@ -874,7 +874,16 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
   moveUnit: (unitId, to) => {
     set((state) => {
       if (!state.battle) return state;
-      const isReachable = state.battle.reachableCells.some((c) => c.x === to.x && c.y === to.y);
+      // reachableCells が空の場合（AI実行時）はその場で計算する
+      let reachable = state.battle.reachableCells;
+      if (reachable.length === 0) {
+        const u = state.battle.units.find((u) => u.characterId === unitId);
+        const ch = state.characters[unitId];
+        if (u && ch && !u.hasMoved) {
+          reachable = calcReachable(u, ch.mov, state.battle.units, state.battle.map.width, state.battle.map.height, state.battle.map.terrain);
+        }
+      }
+      const isReachable = reachable.some((c) => c.x === to.x && c.y === to.y);
       if (!isReachable) return state;
 
       const movedUnit = {
