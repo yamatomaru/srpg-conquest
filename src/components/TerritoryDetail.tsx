@@ -8,7 +8,7 @@ const JOB_COLOR: Record<string, string> = {
 
 export default function TerritoryDetail() {
   const {
-    territories, nations, characters, ui,
+    territories, nations, characters, actedCharIds, ui,
     selectTerritory, startInvasion, cancelInvasion, startTransfer, cancelTransfer,
   } = useGameStore();
   const { selectedTerritoryId, invasionMode, transferMode } = ui;
@@ -38,8 +38,11 @@ export default function TerritoryDetail() {
     return adj && adj.ownerId === playerNation.id;
   });
 
+  const availableUnits = territory.garrisonIds.filter(
+    (id) => characters[id]?.hp > 0 && !actedCharIds.includes(id)
+  );
   const canInvade = isPlayerOwned && !territory.hasActed && territory.garrisonIds.length > 0 && hasAdjacentEnemy;
-  const canTransfer = isPlayerOwned && !territory.hasActed && territory.garrisonIds.length > 0 && hasAdjacentFriendly;
+  const canTransfer = isPlayerOwned && availableUnits.length > 0 && hasAdjacentFriendly;
 
   return (
     <div style={{ padding: 16 }}>

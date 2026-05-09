@@ -27,6 +27,11 @@ const INITIAL_UI: UISelection = {
   activePanel: 'none',
 };
 
+function filterMercPool<T extends { name: string }>(pool: T[], characters: Record<string, { name: string }>): T[] {
+  const existingNames = new Set(Object.values(characters).map((c) => c.name));
+  return pool.filter((m) => !existingNames.has(m.name));
+}
+
 function buildRelations(nations: Record<string, { id: string }>, playerNationId: string): GameState['relations'] {
   return Object.fromEntries(
     Object.values(nations)
@@ -98,7 +103,7 @@ function buildScenarioState(
     actedCharIds: [],
     relations: buildRelations(newNations as typeof NATIONS, playerNationId),
     objectives: [...INITIAL_OBJECTIVES],
-    mercPool: pickMercPool(1, playerFaction),
+    mercPool: filterMercPool(pickMercPool(1, playerFaction), newChars),
     mercDurations: {},
     currentEvent: null,
     ui: { ...INITIAL_UI },
@@ -432,7 +437,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         currentNationId: nationId,
         nations: newNations,
         relations: buildRelations(newNations as typeof NATIONS, nationId),
-        mercPool: pickMercPool(1, playerFaction),
+        mercPool: filterMercPool(pickMercPool(1, playerFaction), state.characters),
       };
     }),
 
@@ -559,7 +564,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       const remaining = from.garrisonIds.filter((id) => !charIds.includes(id));
       const newTerritories = {
         ...state.territories,
-        [fromId]: { ...from, garrisonIds: remaining, hasActed: true },
+        [fromId]: { ...from, garrisonIds: remaining },
         [toId]: { ...to, garrisonIds: [...to.garrisonIds, ...charIds] },
       };
       return {
@@ -812,7 +817,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       actedCharIds: [],
       relations: newRelations,
       objectives: newObjectives,
-      mercPool: pickMercPool(nextMonth, player.faction),
+      mercPool: filterMercPool(pickMercPool(nextMonth, player.faction), eventChars),
       mercDurations: newMercDurations,
       currentEvent: newEvent,
       isAIThinking: campaignVictory === null && !winnerId,
@@ -1322,9 +1327,26 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       const currentId = battle.initiativeOrder[battle.initiativeIndex];
       const currentUnit = battle.units.find((u) => u.characterId === currentId);
 
-      // 現在のユニットがプレイヤー側 or 死亡 → AI終了
+      // 現在のユニットがプレイヤー側 or 存在しない → AI終了
       if (!currentUnit || currentUnit.side === battle.playerSide) {
         set({ isAIThinking: false });
+        return;
+      }
+
+      // 既に行動済みのユニット（エッジケース）はスキップして次へ
+      if (currentUnit.hasActed) {
+        get().endUnitTurn(currentUnit.characterId);
+        setTimeout(() => {
+          const s2 = get();
+          if (!s2.battle || s2.battle.pendingEnd !== null) { set({ isAIThinking: false }); return; }
+          const nextId = s2.battle.initiativeOrder[s2.battle.initiativeIndex];
+          const nextUnit = s2.battle.units.find(u => u.characterId === nextId);
+          if (nextUnit && nextUnit.side !== s2.battle.playerSide) {
+            setTimeout(executeAIUnit, 300);
+          } else {
+            set({ isAIThinking: false });
+          }
+        }, 100);
         return;
       }
 
@@ -1378,7 +1400,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
             if (!s2.battle || s2.battle.pendingEnd !== null) { set({ isAIThinking: false }); return; }
             const nextId = s2.battle.initiativeOrder[s2.battle.initiativeIndex];
             const nextUnit = s2.battle.units.find((u) => u.characterId === nextId);
-            if (nextUnit && nextUnit.side !== s2.battle.playerSide && !nextUnit.hasActed) {
+            if (nextUnit && nextUnit.side !== s2.battle.playerSide) {
               setTimeout(executeAIUnit, 300);
             } else {
               set({ isAIThinking: false });
