@@ -108,6 +108,7 @@ function buildScenarioState(
     mercPool: filterMercPool(pickMercPool(1, playerFaction), newChars),
     mercDurations: {},
     currentEvent: null,
+    recruitOffer: null,
     ui: { ...INITIAL_UI },
   };
 }
@@ -134,6 +135,7 @@ const getInitialState = (): GameState => {
     mercPool: [],
     mercDurations: {},
     currentEvent: null,
+    recruitOffer: null,
     campaignProgress: null,
     campaignScenario: null,
     ui: { ...INITIAL_UI },
@@ -175,6 +177,9 @@ interface GameActions {
   declareWar: (nationId: string) => void;
   // 傭兵
   hireMercenary: (mercId: string) => void;
+  // 勧誘（敗北国兵士を仲間に）
+  acceptRecruit: (charId: string) => void;
+  dismissRecruit: () => void;
   // イベント
   dismissEvent: () => void;
   // パネル
@@ -340,6 +345,20 @@ function resolveBattle(state: GameState, winnerSide: Side): Partial<GameState> {
     ? `★ ${attackerName}が「${toName}」を占領`
     : `✕ ${attackerName}の「${toName}」攻略失敗`;
 
+  // 敗北国が出たらプレイヤーに勧誘オファーを出す
+  const justDefeated = winnerSide === 'attacker'
+    && !state.nations[defenderNationId].defeated
+    && newNations[defenderNationId].defeated
+    && state.nations[attackerNationId].isPlayer
+    && !state.autoPlay
+    && winnerId === null; // ゲームクリアと同時は除く
+  const recruitOffer = justDefeated ? {
+    nationId: defenderNationId,
+    nationName: state.nations[defenderNationId].name,
+    charIds: state.nations[defenderNationId].characterIds.slice(0, 5),
+    recruitedCount: 0,
+  } : state.recruitOffer;
+
   return {
     characters: newCharacters,
     nations: newNations,
@@ -348,6 +367,7 @@ function resolveBattle(state: GameState, winnerSide: Side): Partial<GameState> {
     battle: null,
     isAIThinking: false,
     winnerId,
+    recruitOffer,
     ui: {
       ...state.ui,
       invasionMode: null,
@@ -421,10 +441,24 @@ function applyStrategicBattleResult(
     ? `★ ${attackerName}が「${to.name}」を占領`
     : `✕ ${attackerName}の「${to.name}」攻略失敗`;
 
+  const justDefeated = winnerSide === 'attacker'
+    && !state.nations[defenderNationId].defeated
+    && newNations[defenderNationId].defeated
+    && state.nations[attackerNationId].isPlayer
+    && !state.autoPlay
+    && winnerId === null;
+  const recruitOffer = justDefeated ? {
+    nationId: defenderNationId,
+    nationName: state.nations[defenderNationId].name,
+    charIds: state.nations[defenderNationId].characterIds.slice(0, 5),
+    recruitedCount: 0,
+  } : state.recruitOffer;
+
   return {
     nations: newNations,
     territories: newTerritories,
     winnerId,
+    recruitOffer,
     ui: { ...state.ui, log: [entry, ...state.ui.log].slice(0, 10) },
   };
 }
@@ -580,7 +614,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       };
     }),
 
-  executeInvasion: (fromId, toId, attackerIds) =>
+  executeInvasion: (fromId, toId, attackerIds) => {
     set((state) => {
       const from = state.territories[fromId];
       const to = state.territories[toId];
@@ -643,9 +677,20 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
           log: [entry, ...state.ui.log].slice(0, 10),
         },
       };
-    }),
+    });
+    // バトル開始時に1番手が敵（防衛側）の場合AIを起動
+    const s = get();
+    if (s.phase === 'tactical' && s.battle) {
+      const firstId = s.battle.initiativeOrder[0];
+      const firstUnit = s.battle.units.find((u) => u.characterId === firstId);
+      if (firstUnit && firstUnit.side !== s.battle.playerSide) {
+        set({ isAIThinking: true });
+        setTimeout(() => get().runTacticalAI(), 500);
+      }
+    }
+  },
 
-  executeAIInvasion: (fromId, toId) =>
+  executeAIInvasion: (fromId, toId) => {
     set((state) => {
       const from = state.territories[fromId];
       const to = state.territories[toId];
@@ -697,7 +742,18 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
           log: [entry, ...state.ui.log].slice(0, 10),
         },
       };
-    }),
+    });
+    // バトル開始時に1番手が敵（攻撃側AI）の場合AIを起動
+    const s = get();
+    if (s.phase === 'tactical' && s.battle) {
+      const firstId = s.battle.initiativeOrder[0];
+      const firstUnit = s.battle.units.find((u) => u.characterId === firstId);
+      if (firstUnit && firstUnit.side !== s.battle.playerSide) {
+        set({ isAIThinking: true });
+        setTimeout(() => get().runTacticalAI(), 500);
+      }
+    }
+  },
 
   endPlayerTurn: () => {
     const state = get();
@@ -728,7 +784,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         const ch = newCharacters[cId];
         if (ch.hp >= ch.maxHp) return;
         const wasZero = ch.hp === 0;
-        const recovered = Math.min(ch.maxHp, ch.hp + Math.ceil(ch.maxHp * 0.33));
+        const recovered = Math.min(ch.maxHp, ch.hp + Math.ceil(ch.maxHp * 0.25));
         newCharacters[cId] = { ...ch, hp: recovered };
 
         // hp=0 → 回復 → 本拠地ガリソンに帰還（本拠地が自国のとき）
@@ -974,10 +1030,11 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         )
         .filter((u) => u.characterId !== targetId || !defeated);
 
-      // EXP 付与 + レベルアップ
-      const expGain = damage + (defeated ? 30 : 0);
+      // EXP 付与 + レベルアップ（プレイヤー側は1.5倍）
+      const isPlayerAtk = state.battle.units.find((u) => u.characterId === attackerId)?.side === state.battle.playerSide;
+      const expGain = Math.ceil((damage + (defeated ? 30 : 0)) * (isPlayerAtk ? 1.5 : 1));
       let atkCh = { ...attackerChar, exp: attackerChar.exp + expGain };
-      const lvlThreshold = atkCh.level * 100;
+      const lvlThreshold = atkCh.level * 70; // 旧100→70（LvUPしやすく）
       if (atkCh.exp >= lvlThreshold) {
         atkCh = {
           ...atkCh,
@@ -1070,7 +1127,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     set((state) => {
       if (!state.battle) return state;
       const unit = state.battle.units.find((u) => u.characterId === unitId);
-      if (!unit || unit.usedSkill || unit.side !== state.battle.playerSide) return state;
+      if (!unit || unit.usedSkill) return state;
 
       const ch = state.characters[unitId];
       const jobId = ch.jobId;
@@ -1120,10 +1177,12 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
           }
         });
 
-        // EXP: AoEダメージ合計
-        const totalExp = logEntries.reduce((s, e) => s + e.damage + (e.defeated ? 30 : 0), 0);
+        // EXP: AoEダメージ合計（プレイヤー側1.5倍）
+        const isPlayerUnit2 = unit.side === state.battle!.playerSide;
+        const rawExp2 = logEntries.reduce((s, e) => s + e.damage + (e.defeated ? 30 : 0), 0);
+        const totalExp = Math.ceil(rawExp2 * (isPlayerUnit2 ? 1.5 : 1));
         let atkCh = { ...ch, exp: ch.exp + totalExp };
-        const lvlTh = atkCh.level * 100;
+        const lvlTh = atkCh.level * 70;
         if (atkCh.exp >= lvlTh) {
           atkCh = { ...atkCh, exp: atkCh.exp - lvlTh, level: atkCh.level + 1, maxHp: atkCh.maxHp + 3, atk: atkCh.atk + 1, def: atkCh.def + 1, matk: atkCh.matk + 1, mdef: atkCh.mdef + 1 };
         }
@@ -1155,6 +1214,18 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       }
       return { battle: { ...state.battle, skillMode: true, skillTargets } };
     });
+
+    // スキル使用後に次のユニットがAIなら起動（盾士・魔術師はターンが自動進行）
+    setTimeout(() => {
+      const { battle, isAIThinking } = get();
+      if (!battle || battle.pendingEnd !== null || isAIThinking) return;
+      const currentId = battle.initiativeOrder[battle.initiativeIndex];
+      const currentUnit = battle.units.find((u) => u.characterId === currentId);
+      if (currentUnit && currentUnit.side !== battle.playerSide) {
+        set({ isAIThinking: true });
+        setTimeout(() => get().runTacticalAI(), 300);
+      }
+    }, 0);
   },
 
   executeSkill: (unitId, targetId) => {
@@ -1198,10 +1269,12 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         }
       }
 
-      // EXP
-      const totalExp = logEntries.reduce((s, e) => s + e.damage + (e.defeated ? 30 : 0), 0);
-      let atkCh = { ...ch, exp: ch.exp + totalExp };
-      const lvlTh = atkCh.level * 100;
+      // EXP（プレイヤー側1.5倍）
+      const isPlayerUnit3 = unit.side === state.battle!.playerSide;
+      const rawExp3 = logEntries.reduce((s, e) => s + e.damage + (e.defeated ? 30 : 0), 0);
+      const totalExpSkill = Math.ceil(rawExp3 * (isPlayerUnit3 ? 1.5 : 1));
+      let atkCh = { ...ch, exp: ch.exp + totalExpSkill };
+      const lvlTh = atkCh.level * 70;
       if (atkCh.exp >= lvlTh) {
         atkCh = { ...atkCh, exp: atkCh.exp - lvlTh, level: atkCh.level + 1, maxHp: atkCh.maxHp + 3, atk: atkCh.atk + 1, def: atkCh.def + 1, matk: atkCh.matk + 1, mdef: atkCh.mdef + 1 };
       }
@@ -1309,6 +1382,46 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         ui: { ...state.ui, log: [`💰 傭兵 ${merc.name} を雇用（残4ヶ月）`, ...state.ui.log].slice(0, 10) },
       };
     }),
+
+  // ── 勧誘（敗北国兵士） ────────────────────────────
+
+  acceptRecruit: (charId) =>
+    set((state) => {
+      if (!state.recruitOffer) return state;
+      const RECRUIT_COST = 150;
+      const player = Object.values(state.nations).find((n) => n.isPlayer)!;
+      if (player.gold < RECRUIT_COST) return state;
+      const ch = state.characters[charId];
+      if (!ch) return state;
+
+      // キャラをHP半回復で復帰させプレイヤー国に編入
+      const healedHp = Math.max(1, Math.ceil(ch.maxHp * 0.5));
+      const capId = player.capitalTerritoryId;
+      const capital = state.territories[capId];
+      const newTerritories = capital
+        ? { ...state.territories, [capId]: { ...capital, garrisonIds: [...capital.garrisonIds, charId] } }
+        : state.territories;
+
+      const remainingIds = state.recruitOffer.charIds.filter((id) => id !== charId);
+      const newOffer = remainingIds.length === 0 ? null : {
+        ...state.recruitOffer,
+        charIds: remainingIds,
+        recruitedCount: state.recruitOffer.recruitedCount + 1,
+      };
+
+      return {
+        characters: { ...state.characters, [charId]: { ...ch, hp: healedHp } },
+        nations: {
+          ...state.nations,
+          [player.id]: { ...player, gold: player.gold - RECRUIT_COST, characterIds: [...player.characterIds, charId] },
+        },
+        territories: newTerritories,
+        recruitOffer: newOffer,
+        ui: { ...state.ui, log: [`🤝 ${ch.name} を仲間にした`, ...state.ui.log].slice(0, 10) },
+      };
+    }),
+
+  dismissRecruit: () => set({ recruitOffer: null }),
 
   // ── イベント・パネル ─────────────────────────────
 
@@ -1437,6 +1550,70 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
             set({ isAIThinking: false });
           }
         }, d(700));
+      } else if (action.type === 'skill') {
+        // スキル使用 → ジョブ別に処理分岐
+        get().useSkill(currentUnit.characterId);
+        setTimeout(() => {
+          const s = get();
+          if (!s.battle || s.battle.pendingEnd !== null) { set({ isAIThinking: false }); return; }
+          const jobId = s.characters[currentUnit.characterId]?.jobId;
+
+          if (jobId === 'warrior') {
+            // 渾身撃: ターン未消費 → 続けて攻撃
+            const freshUnit = s.battle.units.find((u) => u.characterId === currentUnit.characterId);
+            if (!freshUnit || freshUnit.hasActed) {
+              const nextId = s.battle.initiativeOrder[s.battle.initiativeIndex];
+              const nextUnit = s.battle.units.find((u) => u.characterId === nextId);
+              if (nextUnit && nextUnit.side !== s.battle.playerSide) setTimeout(executeAIUnit, d(300));
+              else set({ isAIThinking: false });
+              return;
+            }
+            const freshCh = s.characters[freshUnit.characterId];
+            const targets = getAttackTargets(freshUnit, freshCh, s.battle.units);
+            if (targets.length > 0) {
+              get().attackUnit(freshUnit.characterId, targets.sort((a, b) => {
+                const ua = s.battle!.units.find((u) => u.characterId === a)!;
+                const ub = s.battle!.units.find((u) => u.characterId === b)!;
+                return ua.currentHp - ub.currentHp;
+              })[0]);
+              setTimeout(() => {
+                const s2 = get();
+                if (!s2.battle || s2.battle.pendingEnd !== null) { set({ isAIThinking: false }); return; }
+                const nextId = s2.battle.initiativeOrder[s2.battle.initiativeIndex];
+                const nextUnit = s2.battle.units.find((u) => u.characterId === nextId);
+                if (nextUnit && nextUnit.side !== s2.battle.playerSide) setTimeout(executeAIUnit, d(400));
+                else set({ isAIThinking: false });
+              }, d(700));
+            } else {
+              get().endUnitTurn(freshUnit.characterId);
+              setTimeout(() => {
+                const s2 = get();
+                if (!s2.battle || s2.battle.pendingEnd !== null) { set({ isAIThinking: false }); return; }
+                const nextId = s2.battle.initiativeOrder[s2.battle.initiativeIndex];
+                const nextUnit = s2.battle.units.find((u) => u.characterId === nextId);
+                if (nextUnit && nextUnit.side !== s2.battle.playerSide) setTimeout(executeAIUnit, d(300));
+                else set({ isAIThinking: false });
+              }, d(100));
+            }
+          } else if (s.battle.skillMode && action.targetId) {
+            // 槍士・弓師: skillMode に入ったので executeSkill でターゲットを攻撃
+            get().executeSkill(currentUnit.characterId, action.targetId);
+            setTimeout(() => {
+              const s2 = get();
+              if (!s2.battle || s2.battle.pendingEnd !== null) { set({ isAIThinking: false }); return; }
+              const nextId = s2.battle.initiativeOrder[s2.battle.initiativeIndex];
+              const nextUnit = s2.battle.units.find((u) => u.characterId === nextId);
+              if (nextUnit && nextUnit.side !== s2.battle.playerSide) setTimeout(executeAIUnit, d(400));
+              else set({ isAIThinking: false });
+            }, d(700));
+          } else {
+            // 盾士・魔術師: ターン自動進行済み
+            const nextId = s.battle.initiativeOrder[s.battle.initiativeIndex];
+            const nextUnit = s.battle.units.find((u) => u.characterId === nextId);
+            if (nextUnit && nextUnit.side !== s.battle.playerSide) setTimeout(executeAIUnit, d(300));
+            else set({ isAIThinking: false });
+          }
+        }, d(400));
       } else {
         get().endUnitTurn(currentUnit.characterId);
         setTimeout(() => {
@@ -1465,9 +1642,24 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         // プレイヤー国もAIとして動かして自動月送り
         const player = Object.values(s.nations).find((n) => n.isPlayer)!;
         if (!player.defeated) {
-          const transfers = decideAITransfers(player.id, s);
+          // 資金が許す限り傭兵を積極的に雇用
+          const autoHireMercs = () => {
+            const cur = get();
+            const curPlayer = Object.values(cur.nations).find((n) => n.isPlayer)!;
+            const affordable = cur.mercPool
+              .filter((m) => curPlayer.gold >= m.cost)
+              .sort((a, b) => b.cost - a.cost);
+            for (const merc of affordable) {
+              const cp = Object.values(get().nations).find((n) => n.isPlayer)!;
+              if (cp.gold < merc.cost) break;
+              get().hireMercenary(merc.id);
+            }
+          };
+          autoHireMercs();
+
+          const transfers = decideAITransfers(player.id, get());
           if (transfers.length > 0) {
-            const updTerr = { ...s.territories };
+            const updTerr = { ...get().territories };
             for (const tr of transfers) {
               const from = updTerr[tr.fromId];
               const to = updTerr[tr.toId];

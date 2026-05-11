@@ -5,6 +5,7 @@ import { getAttackTargets } from './attack';
 export type AIAction =
   | { type: 'attack'; attackerId: string; targetId: string }
   | { type: 'move'; unitId: string; to: { x: number; y: number } }
+  | { type: 'skill'; unitId: string; targetId?: string }
   | { type: 'wait'; unitId: string }
 
 function manhattan(a: { x: number; y: number }, b: { x: number; y: number }) {
@@ -52,6 +53,58 @@ export function decideAIUnitAction(
   const enemies = battle.units.filter((u) => u.side !== unit.side);
 
   if (enemies.length === 0) return { type: 'wait', unitId: unit.characterId };
+
+  // ── スキル判断（行動前・未使用時のみ）─────────────────
+  if (!unit.usedSkill && !unit.hasActed) {
+    const jobId = ch.jobId;
+
+    // 魔術師: 射程内に敵2体以上 → 全体魔法（通常攻撃の代わりに最優先）
+    if (jobId === 'mage') {
+      const inRange = enemies.filter((e) => {
+        const d = manhattan(unit.position, e.position);
+        return d >= 1 && d <= ch.range;
+      });
+      if (inRange.length >= 2) {
+        return { type: 'skill', unitId: unit.characterId };
+      }
+    }
+
+    // 弓師: 射程内に敵がいれば連射（2回攻撃 > 1回攻撃）
+    if (jobId === 'archer') {
+      const targets = getAttackTargets(unit, ch, battle.units);
+      if (targets.length > 0) {
+        const target = battle.units
+          .filter((u) => targets.includes(u.characterId))
+          .sort((a, b) => a.currentHp - b.currentHp)[0];
+        return { type: 'skill', unitId: unit.characterId, targetId: target.characterId };
+      }
+    }
+
+    // 戦士: 射程内に敵がいれば渾身撃（直後に2倍ダメージで攻撃）
+    if (jobId === 'warrior') {
+      const targets = getAttackTargets(unit, ch, battle.units);
+      if (targets.length > 0) {
+        return { type: 'skill', unitId: unit.characterId };
+      }
+    }
+
+    // 槍士: 通常射程外・突撃射程内（range+1）の敵 → 突撃
+    if (jobId === 'spearman') {
+      const chargeOnly = enemies.filter((e) => {
+        const d = manhattan(unit.position, e.position);
+        return d === ch.range + 1; // 通常攻撃不可・突撃のみ届く距離
+      });
+      if (chargeOnly.length > 0) {
+        const target = chargeOnly.sort((a, b) => a.currentHp - b.currentHp)[0];
+        return { type: 'skill', unitId: unit.characterId, targetId: target.characterId };
+      }
+    }
+
+    // 盾士: HP が60%未満なら庇護の構え
+    if (jobId === 'shielder' && unit.currentHp < ch.maxHp * 0.6) {
+      return { type: 'skill', unitId: unit.characterId };
+    }
+  }
 
   // 攻撃可能なら最も HP の低い敵を攻撃
   const attackTargets = getAttackTargets(unit, ch, battle.units);
