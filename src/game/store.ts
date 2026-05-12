@@ -636,6 +636,22 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       }
 
       const defenderIds = to.garrisonIds.filter((id) => state.characters[id]?.hp > 0);
+
+      // 防衛側が全員回復中（hp=0）なら無血占領
+      if (defenderIds.length === 0) {
+        const patch = applyStrategicBattleResult(state, fromId, toId, 'attacker', attackerIds);
+        return {
+          ...patch,
+          ui: {
+            ...(patch.ui ?? state.ui),
+            invasionMode: null,
+            invasionPending: null,
+            selectedTerritoryId: null,
+            gameOverShown: patch.winnerId != null,
+          },
+        };
+      }
+
       const units = placeUnits(attackerIds, defenderIds, state.characters);
       const initiativeOrder = buildInitiativeOrder(attackerIds, defenderIds, state.characters);
       const terrain = generateTerrain(8, 8);
@@ -701,6 +717,12 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         (id) => state.characters[id]?.hp > 0 && !state.actedCharIds.includes(id),
       );
       const aliveDefenders = to.garrisonIds.filter((id) => state.characters[id]?.hp > 0);
+
+      // プレイヤー防衛側が全員回復中（hp=0）なら戦術バトルなしで自動陥落
+      if (aliveDefenders.length === 0) {
+        return applyStrategicBattleResult(state, fromId, toId, 'attacker', aliveAttackers) as typeof state;
+      }
+
       const units = placeUnits(aliveAttackers, aliveDefenders, state.characters);
       const initiativeOrder = buildInitiativeOrder(aliveAttackers, aliveDefenders, state.characters);
       const terrain = generateTerrain(8, 8);
@@ -1723,8 +1745,15 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       const playerNationId = Object.values(state.nations).find((n) => n.isPlayer)!.id;
 
       if (state.territories[toId].ownerId === playerNationId) {
-        if (state.territories[toId].garrisonIds.length === 0) {
-          const patch = applyStrategicBattleResult(state, fromId, toId, 'attacker', state.territories[fromId].garrisonIds);
+        // 防衛側が無人 or 全員回復中（hp=0）なら無血占領
+        const alivePlayerDefs = state.territories[toId].garrisonIds.filter(
+          (id) => state.characters[id]?.hp > 0,
+        );
+        if (alivePlayerDefs.length === 0) {
+          const aliveAtkIds = state.territories[fromId].garrisonIds.filter(
+            (id) => state.characters[id]?.hp > 0,
+          );
+          const patch = applyStrategicBattleResult(state, fromId, toId, 'attacker', aliveAtkIds);
           set(patch as Partial<GameState & GameActions>);
           setTimeout(() => get()._runStrategicAI(nationIds, idx + 1), d(600));
           return;
