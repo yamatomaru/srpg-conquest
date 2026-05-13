@@ -169,10 +169,12 @@ interface GameActions {
   selectUnit: (unitId: string | null) => void;
   moveUnit: (unitId: string, to: { x: number; y: number }) => void;
   attackUnit: (attackerId: string, targetId: string) => void;
+  moveAndAttack: (unitId: string, targetId: string) => void;
   endUnitTurn: (unitId: string) => void;
   useSkill: (unitId: string) => void;
   executeSkill: (unitId: string, targetId: string) => void;
   cancelSkill: () => void;
+  toggleAutoTactical: () => void;
   // 外交
   proposeAlliance: (nationId: string) => void;
   declareWar: (nationId: string) => void;
@@ -689,6 +691,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         skillTargets: [] as string[],
         activeBuffs: {},
         powerAttackIds: [],
+        autoTactical: false,
+        quickAttackTargets: [] as string[],
       };
 
       seInvade();
@@ -761,6 +765,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         skillTargets: [] as string[],
         activeBuffs: {},
         powerAttackIds: [],
+        autoTactical: false,
+        quickAttackTargets: [] as string[],
       };
 
       const entry = `⚔ ${attackerName}が${defenderName}の「${to.name}」に侵攻！`;
@@ -1159,9 +1165,88 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       if (!battle || battle.pendingEnd !== null || isAIThinking) return;
       const currentId = battle.initiativeOrder[battle.initiativeIndex];
       const currentUnit = battle.units.find((u) => u.characterId === currentId);
-      if (currentUnit && currentUnit.side !== battle.playerSide) {
+      const isEnemyTurn = currentUnit && currentUnit.side !== battle.playerSide;
+      const isAutoTactical = battle.autoTactical;
+      if (isEnemyTurn || isAutoTactical) {
         set({ isAIThinking: true });
-        setTimeout(() => get().runTacticalAI(), 300);
+        setTimeout(() => get().runTacticalAI(), isAutoTactical ? 150 : 300);
+      }
+    }, 0);
+  },
+
+  // ── ワンクリック移動+攻撃 ─────────────────────────
+  moveAndAttack: (unitId, targetId) => {
+    set((state) => {
+      if (!state.battle) return state;
+      const unit = state.battle.units.find((u) => u.characterId === unitId);
+      const target = state.battle.units.find((u) => u.characterId === targetId);
+      const ch = state.characters[unitId];
+      if (!unit || !target || !ch || unit.hasActed) return state;
+
+      const manhattan = (a: {x:number;y:number}, b: {x:number;y:number}) =>
+        Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+
+      // 既に射程内なら移動不要
+      const dist = manhattan(unit.position, target.position);
+      if (!unit.hasMoved && dist > ch.range) {
+        // 射程内に入れる最適セルを探す
+        const reachable = calcReachable(unit, ch.mov, state.battle.units,
+          state.battle.map.width, state.battle.map.height, state.battle.map.terrain);
+        const attackable = reachable.filter((c) => {
+          const d = manhattan(c, target.position);
+          return d >= 1 && d <= ch.range;
+        });
+        if (attackable.length > 0) {
+          // 距離最小→なるべく隣接
+          const best = [...attackable].sort(
+            (a, b) => manhattan(a, target.position) - manhattan(b, target.position)
+          )[0];
+          const movedUnit = { ...unit, position: best, hasMoved: true };
+          const newUnits = state.battle.units.map((u) =>
+            u.characterId === unitId ? movedUnit : u
+          );
+          return {
+            battle: {
+              ...state.battle,
+              units: newUnits,
+              selectedUnitId: unitId,
+              reachableCells: [],
+              attackTargets: [targetId],
+              quickAttackTargets: [],
+            },
+          };
+        }
+      }
+      // 移動不要 or 移動済み: attackTargetsをセットするだけ
+      return {
+        battle: {
+          ...state.battle,
+          selectedUnitId: unitId,
+          reachableCells: [],
+          attackTargets: [targetId],
+          quickAttackTargets: [],
+        },
+      };
+    });
+    // 状態更新後に攻撃実行
+    setTimeout(() => get().attackUnit(unitId, targetId), 0);
+  },
+
+  toggleAutoTactical: () => {
+    set((state) => {
+      if (!state.battle) return state;
+      const newVal = !state.battle.autoTactical;
+      return { battle: { ...state.battle, autoTactical: newVal } };
+    });
+    // ON にした直後、現在プレイヤーターンなら即AIを起動
+    setTimeout(() => {
+      const { battle, isAIThinking } = get();
+      if (!battle || !battle.autoTactical || battle.pendingEnd !== null || isAIThinking) return;
+      const currentId = battle.initiativeOrder[battle.initiativeIndex];
+      const currentUnit = battle.units.find((u) => u.characterId === currentId);
+      if (currentUnit && currentUnit.side === battle.playerSide && !currentUnit.hasActed) {
+        set({ isAIThinking: true });
+        setTimeout(() => get().runTacticalAI(), 150);
       }
     }, 0);
   },

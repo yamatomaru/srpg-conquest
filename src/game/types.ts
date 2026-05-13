@@ -182,6 +182,10 @@ export interface BattleState {
   skillTargets: string[];      // スキルで狙えるユニットID
   activeBuffs: Record<string, { def?: number; mdef?: number }>; // 一時バフ（unitId→加算値）
   powerAttackIds: string[];    // 渾身撃 発動済みユニット（次攻撃2倍）
+  // オートバトル
+  autoTactical: boolean;       // 戦術マップをAIに全委任
+  // ワンクリック攻撃用: 移動後に攻撃可能な敵IDセット（プレイヤーターン時に計算）
+  quickAttackTargets: string[];
 }
 
 // ============================================================

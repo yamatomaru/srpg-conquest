@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { useGameStore } from '../game/store';
 import { JOB_ABBR } from '../data/jobs';
 import { TERRAIN_DEFS } from '../game/terrain';
+import { calcReachable } from '../game/tactical/movement';
 
 const CELL = 90;
 const PADDING = 36;
@@ -22,7 +23,7 @@ interface Popup {
 let popupCounter = 0;
 
 export default function TacticalMap() {
-  const { battle, characters, nations, isAIThinking, selectUnit, moveUnit, attackUnit, executeSkill, endBattle } = useGameStore();
+  const { battle, characters, nations, isAIThinking, selectUnit, moveUnit, attackUnit, moveAndAttack, executeSkill, endBattle } = useGameStore();
   const [popups, setPopups] = useState<Popup[]>([]);
   const prevLogRef = useRef(battle?.recentLog[0] ?? null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -64,6 +65,41 @@ export default function TacticalMap() {
 
   const currentActiveId = battle.initiativeOrder[battle.initiativeIndex];
 
+  // ── ワンクリック攻撃対象を計算（プレイヤーターン、未行動ユニットのみ）──
+  const quickAttackTargetSet = useMemo(() => {
+    if (isAIThinking || battle.autoTactical) return new Set<string>();
+    const activeUnit = units.find((u) => u.characterId === currentActiveId);
+    if (!activeUnit || activeUnit.side !== battle.playerSide || activeUnit.hasActed) return new Set<string>();
+    const ch = characters[activeUnit.characterId];
+    if (!ch) return new Set<string>();
+
+    const manhattan = (a: {x:number;y:number}, b: {x:number;y:number}) =>
+      Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+
+    const enemies = units.filter((u) => u.side !== activeUnit.side);
+    const result = new Set<string>();
+
+    // 既に射程内の敵
+    enemies.forEach((e) => {
+      const d = manhattan(activeUnit.position, e.position);
+      if (d >= 1 && d <= ch.range) result.add(e.characterId);
+    });
+
+    // 移動後に射程内に入れる敵
+    if (!activeUnit.hasMoved) {
+      const reachable = calcReachable(activeUnit, ch.mov, units, map.width, map.height, map.terrain);
+      enemies.forEach((e) => {
+        if (result.has(e.characterId)) return;
+        const canReach = reachable.some((c) => {
+          const d = manhattan(c, e.position);
+          return d >= 1 && d <= ch.range;
+        });
+        if (canReach) result.add(e.characterId);
+      });
+    }
+    return result;
+  }, [currentActiveId, units, characters, isAIThinking, battle.autoTactical, battle.playerSide]);
+
   const W = map.width * CELL;
   const H = map.height * CELL;
   const SVG_W = W + PADDING * 2;
@@ -89,6 +125,11 @@ export default function TacticalMap() {
     }
     if (selectedUnitId !== null && reachableSet.has(`${x},${y}`)) {
       moveUnit(selectedUnitId, { x, y });
+      return;
+    }
+    // ▼ ワンクリック攻撃: 現在アクティブユニットが未行動 + 敵をクリック
+    if (unit && quickAttackTargetSet.has(unit.characterId)) {
+      moveAndAttack(currentActiveId, unit.characterId);
       return;
     }
     if (unit && unit.characterId === currentActiveId && unit.side === battle!.playerSide && !unit.hasActed) {
@@ -162,6 +203,23 @@ export default function TacticalMap() {
                 fill="#ef4444" fillOpacity={0.35}
                 stroke="#fca5a5" strokeWidth={2} rx={6}
               />
+            ))}
+
+            {/* ▼ ワンクリック攻撃インジケーター */}
+            {!skillMode && units.filter((u) => quickAttackTargetSet.has(u.characterId) && !attackTargetSet.has(u.characterId)).map((u) => (
+              <g key={`qatk-${u.characterId}`}>
+                <rect
+                  x={u.position.x * CELL + 3} y={u.position.y * CELL + 3}
+                  width={CELL - 6} height={CELL - 6}
+                  fill="#f97316" fillOpacity={0.18}
+                  stroke="#fb923c" strokeWidth={1.5} rx={6} strokeDasharray="5 3"
+                />
+                <text
+                  x={u.position.x * CELL + CELL / 2}
+                  y={u.position.y * CELL + 14}
+                  textAnchor="middle" fill="#fb923c" fontSize={18} fontWeight="bold"
+                >▼</text>
+              </g>
             ))}
 
             {/* ユニット */}

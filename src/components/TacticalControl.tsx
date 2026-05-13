@@ -4,7 +4,7 @@ import { TERRAIN_DEFS } from '../game/terrain';
 import { useIsMobile } from '../hooks/useIsMobile';
 
 export default function TacticalControl() {
-  const { battle, nations, characters, isAIThinking, endBattle, endUnitTurn, useSkill, cancelSkill } = useGameStore();
+  const { battle, nations, characters, isAIThinking, endBattle, endUnitTurn, useSkill, cancelSkill, toggleAutoTactical } = useGameStore();
   const isMobile = useIsMobile();
 
   if (!battle) return null;
@@ -66,7 +66,7 @@ export default function TacticalControl() {
                 <span>DEF <span style={{ color: '#60a5fa' }}>{currentChar.def}</span></span>
                 <span>MATK <span style={{ color: '#c084fc' }}>{currentChar.matk}</span></span>
                 <span>MDEF <span style={{ color: '#7dd3fc' }}>{currentChar.mdef}</span></span>
-                <span>EXP <span style={{ color: '#60a5fa' }}>{currentChar.exp}/{currentChar.level * 100}</span></span>
+                <span>EXP <span style={{ color: '#60a5fa' }}>{currentChar.exp}/{currentChar.level * 70}</span></span>
                 {currentUnit.position && (() => {
                   const t = battle.map.terrain[currentUnit.position.y]?.[currentUnit.position.x] ?? 'plain';
                   return <span>地形 <span style={{ color: '#fbbf24' }}>{TERRAIN_DEFS[t].label}</span></span>;
@@ -99,6 +99,13 @@ export default function TacticalControl() {
             待機
           </button>
         )}
+        <button
+          onClick={toggleAutoTactical}
+          style={{ ...btnSt, background: battle.autoTactical ? '#dc2626' : '#0e7490' }}
+          title={battle.autoTactical ? 'オートバトル停止' : 'オートバトル: AIに委任'}
+        >
+          {battle.autoTactical ? '⏹ AUTO' : '🤖 AUTO'}
+        </button>
         {isPlayerTurn && (
           <button
             onClick={() => endBattle(battle.playerSide === 'attacker' ? 'defender' : 'attacker')}
