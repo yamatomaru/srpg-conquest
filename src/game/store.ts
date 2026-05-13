@@ -5,7 +5,7 @@ import { TERRITORIES } from '../data/territories';
 import { CHARACTERS } from '../data/characters';
 import { JOBS } from '../data/jobs';
 import { CAMPAIGNS } from '../data/campaigns';
-import { placeUnits } from './tactical/placement';
+import { placeUnits, selectBattleParticipants } from './tactical/placement';
 import { calcReachable } from './tactical/movement';
 import { calculateDamage, canAttack, getAttackTargets } from './tactical/attack';
 import { decideAIUnitAction } from './tactical/ai';
@@ -665,15 +665,17 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         };
       }
 
+      const selectedAttackers = selectBattleParticipants(attackerIds, state.characters);
+      const selectedDefenders = selectBattleParticipants(defenderIds, state.characters);
       const units = placeUnits(attackerIds, defenderIds, state.characters);
-      const initiativeOrder = buildInitiativeOrder(attackerIds, defenderIds, state.characters);
-      const terrain = generateTerrain(8, 8);
+      const initiativeOrder = buildInitiativeOrder(selectedAttackers, selectedDefenders, state.characters);
+      const terrain = generateTerrain(8, 6);
       const battle: BattleState = {
         attackerNationId: from.ownerId,
         defenderNationId: to.ownerId,
         fromTerritoryId: fromId,
         territoryId: toId,
-        map: { width: 8, height: 8, terrain },
+        map: { width: 8, height: 6, terrain },
         units,
         originalAttackerIds: attackerIds,
         originalDefenderIds: defenderIds,
@@ -739,15 +741,17 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         return applyStrategicBattleResult(state, fromId, toId, 'attacker', aliveAttackers) as typeof state;
       }
 
+      const selAtk = selectBattleParticipants(aliveAttackers, state.characters);
+      const selDef = selectBattleParticipants(aliveDefenders, state.characters);
       const units = placeUnits(aliveAttackers, aliveDefenders, state.characters);
-      const initiativeOrder = buildInitiativeOrder(aliveAttackers, aliveDefenders, state.characters);
-      const terrain = generateTerrain(8, 8);
+      const initiativeOrder = buildInitiativeOrder(selAtk, selDef, state.characters);
+      const terrain = generateTerrain(8, 6);
       const battle: BattleState = {
         attackerNationId: from.ownerId,
         defenderNationId: to.ownerId,
         fromTerritoryId: fromId,
         territoryId: toId,
-        map: { width: 8, height: 8, terrain },
+        map: { width: 8, height: 6, terrain },
         units,
         originalAttackerIds: aliveAttackers,
         originalDefenderIds: aliveDefenders,

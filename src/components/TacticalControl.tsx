@@ -2,6 +2,7 @@ import { useGameStore } from '../game/store';
 import { JOBS } from '../data/jobs';
 import { TERRAIN_DEFS } from '../game/terrain';
 import { useIsMobile } from '../hooks/useIsMobile';
+import { MAX_BATTLE_UNITS } from '../game/tactical/placement';
 
 export default function TacticalControl() {
   const { battle, nations, characters, isAIThinking, endBattle, endUnitTurn, useSkill, cancelSkill, toggleAutoTactical } = useGameStore();
@@ -47,6 +48,24 @@ export default function TacticalControl() {
         <span style={{ color: '#9ca3af', fontSize: isMobile ? 12 : 18 }}>
           R{battle.turnCount + 1}/{battle.maxTurns}
         </span>
+        {!isMobile && (() => {
+          const atkCount = battle.units.filter((u) => u.side === 'attacker').length;
+          const defCount = battle.units.filter((u) => u.side === 'defender').length;
+          const totalAtk = battle.originalAttackerIds.length;
+          const totalDef = battle.originalDefenderIds.length;
+          const reserveAtk = totalAtk - atkCount;
+          const reserveDef = totalDef - defCount;
+          return (
+            <span style={{ fontSize: 13, color: '#6b7280' }}>
+              <span style={{ color: attackerNation.color }}>{atkCount}</span>
+              {reserveAtk > 0 && <span style={{ color: '#4b5563' }}>+{reserveAtk}控</span>}
+              <span style={{ margin: '0 4px', color: '#4b5563' }}>vs</span>
+              <span style={{ color: defenderNation.color }}>{defCount}</span>
+              {reserveDef > 0 && <span style={{ color: '#4b5563' }}>+{reserveDef}控</span>}
+              <span style={{ color: '#4b5563', marginLeft: 4 }}>（上限{MAX_BATTLE_UNITS}）</span>
+            </span>
+          );
+        })()}
       </div>
 
       {/* 中央: 現在の行動ユニット + ステータス */}
