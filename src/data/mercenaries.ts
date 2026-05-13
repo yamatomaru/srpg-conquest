@@ -2,18 +2,29 @@ import type { MercTemplate } from '../game/types';
 
 const CDN = 'https://d2fvodbijouf8s.cloudfront.net/images/heroes/64';
 
-// 通常傭兵（勢力問わず雇用可能、月ごとローテーション）
+// 通常傭兵（勢力問わず雇用可能）
 const BASE_MERCS: MercTemplate[] = [
-  { id: 'merc_1', name: '流れ者ガルデン',   jobId: 'warrior',  level: 3, cost: 150, faction: '朱雀' },
-  { id: 'merc_2', name: '弓の達人イシャ',   jobId: 'archer',   level: 3, cost: 140, faction: '朱雀' },
-  { id: 'merc_3', name: '老魔道士バルモア', jobId: 'mage',     level: 4, cost: 200, faction: '青龍' },
-  { id: 'merc_4', name: '傭兵槍士クロン',   jobId: 'spearman', level: 2, cost: 100, faction: '青龍' },
-  { id: 'merc_5', name: '鉄壁の盾士ドガン', jobId: 'shielder', level: 4, cost: 180, faction: '玄武' },
-  { id: 'merc_6', name: '女剣士サラシア',   jobId: 'warrior',  level: 5, cost: 250, faction: '玄武' },
-  { id: 'merc_7', name: '暗弓師テレス',     jobId: 'archer',   level: 5, cost: 240, faction: '黄竜' },
-  { id: 'merc_8', name: '魔術師ゼノン',     jobId: 'mage',     level: 3, cost: 160, faction: '黄竜' },
-  { id: 'merc_9', name: '槍姫アデラ',       jobId: 'spearman', level: 5, cost: 230, faction: '白虎' },
-  { id: 'merc_a', name: '古豪シールダス',   jobId: 'shielder', level: 3, cost: 130, faction: '白虎' },
+  // Lv2 ～ 低コスト入門
+  { id: 'merc_b1', name: '新米盾士ゴルド',     jobId: 'shielder', level: 2, cost:  80, faction: '玄武' },
+  { id: 'merc_b2', name: '流浪の剣士ライン',   jobId: 'warrior',  level: 2, cost:  80, faction: '朱雀' },
+  { id: 'merc_b3', name: '旅する槍士ノア',     jobId: 'spearman', level: 2, cost:  70, faction: '黄竜' },
+  { id: 'merc_b4', name: '狩人アーウィン',     jobId: 'archer',   level: 2, cost:  70, faction: '白虎' },
+  { id: 'merc_b5', name: '見習い魔術師ルシア', jobId: 'mage',     level: 2, cost:  80, faction: '青龍' },
+  // Lv3 ～ 中堅
+  { id: 'merc_1',  name: '流れ者ガルデン',     jobId: 'warrior',  level: 3, cost: 150, faction: '朱雀' },
+  { id: 'merc_2',  name: '弓の達人イシャ',     jobId: 'archer',   level: 3, cost: 140, faction: '朱雀' },
+  { id: 'merc_4',  name: '傭兵槍士クロン',     jobId: 'spearman', level: 3, cost: 130, faction: '青龍' },
+  { id: 'merc_8',  name: '魔術師ゼノン',       jobId: 'mage',     level: 3, cost: 160, faction: '黄竜' },
+  { id: 'merc_a',  name: '古豪シールダス',     jobId: 'shielder', level: 3, cost: 130, faction: '白虎' },
+  // Lv4～5 ～ 高コスト精鋭
+  { id: 'merc_3',  name: '老魔道士バルモア',   jobId: 'mage',     level: 4, cost: 200, faction: '青龍' },
+  { id: 'merc_5',  name: '鉄壁の盾士ドガン',   jobId: 'shielder', level: 4, cost: 180, faction: '玄武' },
+  { id: 'merc_c1', name: '歴戦の槍騎士フォン', jobId: 'spearman', level: 4, cost: 190, faction: '黄竜' },
+  { id: 'merc_6',  name: '女剣士サラシア',     jobId: 'warrior',  level: 5, cost: 250, faction: '玄武' },
+  { id: 'merc_7',  name: '暗弓師テレス',       jobId: 'archer',   level: 5, cost: 240, faction: '黄竜' },
+  { id: 'merc_9',  name: '槍姫アデラ',         jobId: 'spearman', level: 5, cost: 230, faction: '白虎' },
+  { id: 'merc_c2', name: '魔剣士クロウ',       jobId: 'warrior',  level: 5, cost: 260, faction: '朱雀' },
+  { id: 'merc_c3', name: '賢者エルミナ',       jobId: 'mage',     level: 5, cost: 250, faction: '青龍' },
 ];
 
 // MyCryptoHeroes ヒーロー傭兵
@@ -113,10 +124,6 @@ export const MERC_POOL: MercTemplate[] = [...BASE_MERCS, ...MCH_MERCS];
  * - 同一勢力のMCHヒーロー全員を表示
  * - 勢力未定の場合は全勢力のMCHヒーローをローテーション表示
  */
-export function pickMercPool(_month: number, playerFaction?: string): MercTemplate[] {
-  if (playerFaction) {
-    return MCH_MERCS.filter((m) => m.faction === playerFaction);
-  }
-  // 勢力未定の場合は通常傭兵をフォールバック表示
-  return BASE_MERCS.slice(0, 4);
+export function pickMercPool(_month: number, _playerFaction?: string): MercTemplate[] {
+  return MCH_MERCS;
 }

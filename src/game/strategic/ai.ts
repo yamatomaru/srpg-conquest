@@ -14,7 +14,8 @@ export interface AITransfer {
 
 function getMyTerritories(nationId: string, state: GameState) {
   return Object.values(state.territories).filter(
-    (t) => t.ownerId === nationId && !t.hasActed && t.garrisonIds.length > 0,
+    (t) => t.ownerId === nationId && !t.hasActed &&
+           t.garrisonIds.some((id) => (state.characters[id]?.hp ?? 0) > 0),
   );
 }
 
@@ -38,23 +39,35 @@ function getEnemyAdj(from: Territory, nationId: string, state: GameState, skipNa
 
 function decideSuzaku(nationId: string, state: GameState, alliancePlayerId?: string): StrategicAction {
   const mine = getMyTerritories(nationId, state);
-  const candidates: { from: string; to: string; score: number }[] = [];
 
+  // 隣接敵国の中で最も領地数が少ない国を特定し、集中攻撃
+  const adjNationTerritories: Record<string, number> = {};
+  for (const from of mine) {
+    for (const adj of getEnemyAdj(from, nationId, state, alliancePlayerId)) {
+      if (adjNationTerritories[adj.ownerId] === undefined) {
+        adjNationTerritories[adj.ownerId] = Object.values(state.territories)
+          .filter((t) => t.ownerId === adj.ownerId).length;
+      }
+    }
+  }
+  const weakestNationId = Object.entries(adjNationTerritories)
+    .sort(([, a], [, b]) => a - b)[0]?.[0];
+
+  const candidates: { from: string; to: string; score: number }[] = [];
   for (const from of mine) {
     const myCount = liveCount(from, state);
     for (const adj of getEnemyAdj(from, nationId, state, alliancePlayerId)) {
       const enemyCount = liveCount(adj, state);
-      // 敵の 1.25 倍以上の兵がいないと攻めない
-      if (myCount < enemyCount * 0.8) continue;
-      const random = Math.random() * 2 - 1; // ±1 のランダム性
-      const score = enemyCount - myCount + random;
+      if (myCount < enemyCount * 0.7) continue;
+      // 最弱国への攻撃を優先（スコア-3のボーナス）
+      const focus = adj.ownerId === weakestNationId ? -3 : 0;
+      const score = focus + enemyCount - myCount + (Math.random() * 2 - 1);
       candidates.push({ from: from.id, to: adj.id, score });
     }
   }
   if (candidates.length === 0) return { type: 'pass' };
 
   candidates.sort((a, b) => a.score - b.score);
-  // 上位2択から選ぶ（適度な変動）
   const pick = candidates[Math.floor(Math.random() * Math.min(2, candidates.length))];
   return { type: 'invade', fromId: pick.from, toId: pick.to };
 }
@@ -64,25 +77,24 @@ function decideSuzaku(nationId: string, state: GameState, alliancePlayerId?: str
 function decideSeiryu(nationId: string, state: GameState, alliancePlayerId?: string): StrategicAction {
   const mine = getMyTerritories(nationId, state);
 
-  // 自軍合計 vs 全隣接敵合計
   const myTotal = mine.reduce((s, t) => s + liveCount(t, state), 0);
   const enemyBorderTotal = mine.reduce((s, from) => {
     return s + getEnemyAdj(from, nationId, state, alliancePlayerId)
       .reduce((es, adj) => es + liveCount(adj, state), 0);
   }, 0);
 
-  // 兵数比が 1.2 倍超えたら攻勢（1.4 から引き下げ）
-  if (myTotal < enemyBorderTotal * 1.2) return { type: 'pass' };
+  if (myTotal < enemyBorderTotal * 0.7) return { type: 'pass' };
 
-  let best = { from: '', to: '', score: Infinity };
+  const candidates: { from: string; to: string; score: number }[] = [];
   for (const from of mine) {
     for (const adj of getEnemyAdj(from, nationId, state, alliancePlayerId)) {
-      const score = liveCount(adj, state) - liveCount(from, state);
-      if (score < best.score) { best = { from: from.id, to: adj.id, score }; }
+      const score = liveCount(adj, state) - liveCount(from, state) + (Math.random() - 0.5);
+      candidates.push({ from: from.id, to: adj.id, score });
     }
   }
-  if (best.from) return { type: 'invade', fromId: best.from, toId: best.to };
-  return { type: 'pass' };
+  if (candidates.length === 0) return { type: 'pass' };
+  candidates.sort((a, b) => a.score - b.score);
+  return { type: 'invade', fromId: candidates[0].from, toId: candidates[0].to };
 }
 
 // ── 玄武：守備優先、数的有利のみ攻撃 ────────────────
@@ -90,19 +102,20 @@ function decideSeiryu(nationId: string, state: GameState, alliancePlayerId?: str
 function decideGenbu(nationId: string, state: GameState, alliancePlayerId?: string): StrategicAction {
   const mine = getMyTerritories(nationId, state);
 
-  let best = { from: '', to: '', score: Infinity };
+  const candidates: { from: string; to: string; score: number }[] = [];
   for (const from of mine) {
     for (const adj of getEnemyAdj(from, nationId, state, alliancePlayerId)) {
       const myCount = liveCount(from, state);
       const enemyCount = liveCount(adj, state);
-      // 自軍が 1.5 倍以上のときだけ攻める（2倍から引き下げ）
-      if (myCount < enemyCount * 1.5) continue;
-      const score = enemyCount - myCount;
-      if (score < best.score) { best = { from: from.id, to: adj.id, score }; }
+      // 0.55倍以上なら攻める（守備優先だが積極性も維持）
+      if (myCount < enemyCount * 0.55) continue;
+      const score = enemyCount - myCount + (Math.random() - 0.5);
+      candidates.push({ from: from.id, to: adj.id, score });
     }
   }
-  if (best.from) return { type: 'invade', fromId: best.from, toId: best.to };
-  return { type: 'pass' };
+  if (candidates.length === 0) return { type: 'pass' };
+  candidates.sort((a, b) => a.score - b.score);
+  return { type: 'invade', fromId: candidates[0].from, toId: candidates[0].to };
 }
 
 // ── 黄竜：前線に満遍なく配置して攻撃 ────────────────
@@ -110,8 +123,6 @@ function decideGenbu(nationId: string, state: GameState, alliancePlayerId?: stri
 function decideKoryu(nationId: string, state: GameState, alliancePlayerId?: string): StrategicAction {
   const mine = getMyTerritories(nationId, state);
 
-  // 国境領地ごとに均等に兵を配置する意図で、
-  // 各国境から均等に攻撃（最弱ではなく均等に）
   const allTargets: { from: string; to: string; ratio: number }[] = [];
   for (const from of mine) {
     for (const adj of getEnemyAdj(from, nationId, state, alliancePlayerId)) {
@@ -124,7 +135,7 @@ function decideKoryu(nationId: string, state: GameState, alliancePlayerId?: stri
   // 均等な配置感を出すため自軍有利な箇所から攻撃
   allTargets.sort((a, b) => b.ratio - a.ratio);
   const pick = allTargets[0];
-  if (pick.ratio >= 0.8) return { type: 'invade', fromId: pick.from, toId: pick.to };
+  if (pick.ratio >= 0.5) return { type: 'invade', fromId: pick.from, toId: pick.to };
   return { type: 'pass' };
 }
 
@@ -133,20 +144,33 @@ function decideKoryu(nationId: string, state: GameState, alliancePlayerId?: stri
 function decideByakko(nationId: string, state: GameState, alliancePlayerId?: string): StrategicAction {
   const mine = getMyTerritories(nationId, state);
 
-  // 最弱の敵へ積極的に攻め込む（自滅防止のため最低限の比率チェック）
-  let best = { from: '', to: '', score: Infinity };
+  // 最弱国に集中（Suzakuと同様）
+  const adjNationTerritories: Record<string, number> = {};
+  for (const from of mine) {
+    for (const adj of getEnemyAdj(from, nationId, state, alliancePlayerId)) {
+      if (adjNationTerritories[adj.ownerId] === undefined) {
+        adjNationTerritories[adj.ownerId] = Object.values(state.territories)
+          .filter((t) => t.ownerId === adj.ownerId).length;
+      }
+    }
+  }
+  const weakestNationId = Object.entries(adjNationTerritories)
+    .sort(([, a], [, b]) => a - b)[0]?.[0];
+
+  const candidates: { from: string; to: string; score: number }[] = [];
   for (const from of mine) {
     const myCount = liveCount(from, state);
     for (const adj of getEnemyAdj(from, nationId, state, alliancePlayerId)) {
       const enemyCount = liveCount(adj, state);
-      // 敵が自軍の 1.6 倍を超える場合はスキップ（自滅防止）
-      if (myCount < enemyCount * 0.6) continue;
-      const score = enemyCount;
-      if (score < best.score) { best = { from: from.id, to: adj.id, score }; }
+      if (myCount < enemyCount * 0.7) continue;
+      const focus = adj.ownerId === weakestNationId ? -3 : 0;
+      const score = focus + enemyCount + (Math.random() - 0.5);
+      candidates.push({ from: from.id, to: adj.id, score });
     }
   }
-  if (best.from) return { type: 'invade', fromId: best.from, toId: best.to };
-  return { type: 'pass' };
+  if (candidates.length === 0) return { type: 'pass' };
+  candidates.sort((a, b) => a.score - b.score);
+  return { type: 'invade', fromId: candidates[0].from, toId: candidates[0].to };
 }
 
 // ── 公開API ──────────────────────────────────────────
@@ -209,12 +233,14 @@ export function decideAITransfers(nationId: string, state: GameState): AITransfe
     const to = state.territories[toId];
     const aliveInTo = to.garrisonIds.filter((id) => state.characters[id]?.hp > 0);
 
-    if (aliveInFrom.length <= aliveInTo.length) continue;
+    // 送り先より多い場合のみ（ただし1人は守備に残す）
+    if (aliveInFrom.length < 2) continue;
+    const maxSend = aliveInFrom.length - 1; // 1人守備に残す
+    if (maxSend <= 0 || aliveInTo.length >= aliveInFrom.length + 1) continue;
 
-    const surplus = aliveInFrom.length - aliveInTo.length;
     // 青龍：より多く集める（ratio高め）/ 黄竜：均等に分散（ratio低め）
     const ratio = faction === '青龍' ? 0.75 : faction === '黄竜' ? 0.4 : 0.5;
-    const count = Math.max(1, Math.floor(surplus * ratio));
+    const count = Math.max(1, Math.floor(maxSend * ratio));
     const charIds = aliveInFrom.slice(0, count);
 
     transfers.push({ fromId: from.id, toId, charIds });

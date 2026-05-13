@@ -272,6 +272,13 @@ export interface EditorMap {
 // ゲーム全体状態
 // ============================================================
 
+export interface RecruitOffer {
+  nationId: string;
+  nationName: string;
+  charIds: string[];        // 招集候補キャラID（最大5名）
+  recruitedCount: number;   // 今回すでに仲間にした数
+}
+
 export interface GameState {
   phase: GamePhase;
   month: number;
@@ -291,6 +298,7 @@ export interface GameState {
   mercPool: MercTemplate[];        // 今月採用可能な傭兵
   mercDurations: Record<string, number>; // charId → 残り月数（0=雇用期間終了）
   currentEvent: GameEvent | null;  // 今月のランダムイベント（表示後null）
+  recruitOffer: RecruitOffer | null; // 敗北国から兵士を勧誘するオファー
   // キャンペーン
   campaignProgress: CampaignProgress | null;
   campaignScenario: CampaignScenario | null;

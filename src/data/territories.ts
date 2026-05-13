@@ -35,13 +35,13 @@ export const TERRITORIES: Record<string, Territory> = {
   },
   nord3: {
     id: 'nord3', name: '北の本城',
-    ownerId: 'nordal', garrisonIds: ['c_nord_5', 'c_nord_6'],
+    ownerId: 'nordal', garrisonIds: ['c_nord_6'],
     adjacentTo: ['nord2', 'nord4'],
     position: px(2, 0), income: 60, hasActed: false,
   },
   nord4: {
     id: 'nord4', name: '雪原の関門',
-    ownerId: 'nordal', garrisonIds: ['c_nord_7', 'c_nord_8'],
+    ownerId: 'nordal', garrisonIds: ['c_nord_5', 'c_nord_7', 'c_nord_8'],
     adjacentTo: ['nord3', 'nord5', 'alba3'],
     position: px(3, 0), income: 35, hasActed: false,
   },
@@ -89,31 +89,31 @@ export const TERRITORIES: Record<string, Territory> = {
   // 本拠地: alba5（中央内陸、自国のみ接続）
   alba1: {
     id: 'alba1', name: '中の城門',
-    ownerId: 'albania', garrisonIds: ['c_alba_1', 'c_alba_2'],
+    ownerId: 'albania', garrisonIds: ['c_alba_1', 'c_alba_2', 'c_alba_3', 'c_alba_4'],
     adjacentTo: ['nord2', 'vies1', 'alba2', 'alba4'],
     position: px(1, 1), income: 40, hasActed: false,
   },
   alba2: {
     id: 'alba2', name: '中央平野',
-    ownerId: 'albania', garrisonIds: ['c_alba_3', 'c_alba_4'],
+    ownerId: 'albania', garrisonIds: [],
     adjacentTo: ['alba1', 'alba3', 'alba5'],
     position: px(2, 1), income: 35, hasActed: false,
   },
   alba3: {
     id: 'alba3', name: '東の砦台',
-    ownerId: 'albania', garrisonIds: ['c_alba_5', 'c_alba_6'],
+    ownerId: 'albania', garrisonIds: ['c_alba_5', 'c_alba_6', 'c_alba_7'],
     adjacentTo: ['nord4', 'alba2', 'magn1', 'magn2'],
     position: px(3, 1), income: 40, hasActed: false,
   },
   alba4: {
     id: 'alba4', name: '緑の丘陵',
-    ownerId: 'albania', garrisonIds: ['c_alba_7', 'c_alba_8'],
+    ownerId: 'albania', garrisonIds: ['c_alba_8', 'c_alba_9'],
     adjacentTo: ['alba1', 'vies2', 'alba5', 'silv1'],
     position: px(1, 2), income: 35, hasActed: false,
   },
   alba5: {
     id: 'alba5', name: '中の王城',
-    ownerId: 'albania', garrisonIds: ['c_alba_9', 'c_alba_10'],
+    ownerId: 'albania', garrisonIds: ['c_alba_10'],
     adjacentTo: ['alba2', 'alba4'],
     position: px(2, 2), income: 60, hasActed: false,
   },
@@ -122,7 +122,7 @@ export const TERRITORIES: Record<string, Territory> = {
   // 本拠地: magn4（col4中央、自国のみ接続）
   magn1: {
     id: 'magn1', name: '東の聖塔',
-    ownerId: 'magnus', garrisonIds: ['c_magn_1', 'c_magn_2'],
+    ownerId: 'magnus', garrisonIds: ['c_magn_1', 'c_magn_2', 'c_magn_10'],
     adjacentTo: ['nord5', 'alba3', 'magn3'],
     position: px(4, 1), income: 45, hasActed: false,
   },
@@ -146,7 +146,7 @@ export const TERRITORIES: Record<string, Territory> = {
   },
   magn5: {
     id: 'magn5', name: '魔都の港',
-    ownerId: 'magnus', garrisonIds: ['c_magn_9', 'c_magn_10'],
+    ownerId: 'magnus', garrisonIds: ['c_magn_9'],
     adjacentTo: ['magn4', 'silv5'],
     position: px(4, 4), income: 35, hasActed: false,
   },
@@ -161,25 +161,25 @@ export const TERRITORIES: Record<string, Territory> = {
   },
   silv2: {
     id: 'silv2', name: '聖なる樹',
-    ownerId: 'sylvan', garrisonIds: ['c_silv_3', 'c_silv_4'],
+    ownerId: 'sylvan', garrisonIds: ['c_silv_4'],
     adjacentTo: ['silv1', 'silv3', 'silv4'],
     position: px(2, 3), income: 55, hasActed: false,
   },
   silv3: {
     id: 'silv3', name: '緑の聖地',
-    ownerId: 'sylvan', garrisonIds: ['c_silv_5', 'c_silv_6'],
+    ownerId: 'sylvan', garrisonIds: ['c_silv_5', 'c_silv_6', 'c_silv_7'],
     adjacentTo: ['magn2', 'silv2', 'silv5'],
     position: px(3, 3), income: 35, hasActed: false,
   },
   silv4: {
     id: 'silv4', name: '花咲く草原',
-    ownerId: 'sylvan', garrisonIds: ['c_silv_7', 'c_silv_8'],
+    ownerId: 'sylvan', garrisonIds: ['c_silv_8', 'c_silv_10'],
     adjacentTo: ['silv2', 'vies5', 'silv5'],
     position: px(2, 4), income: 30, hasActed: false,
   },
   silv5: {
     id: 'silv5', name: '南海の浜辺',
-    ownerId: 'sylvan', garrisonIds: ['c_silv_9', 'c_silv_10'],
+    ownerId: 'sylvan', garrisonIds: ['c_silv_3', 'c_silv_9'],
     adjacentTo: ['silv3', 'silv4', 'magn5'],
     position: px(3, 4), income: 30, hasActed: false,
   },

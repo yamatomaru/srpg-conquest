@@ -94,32 +94,43 @@ function applyInvasion(state: SimState, fromId: string, toId: string): void {
 
   if (result.winnerSide === 'attacker') {
     const surviving = result.survivingAttackerIds;
-    const moveCount = Math.max(1, Math.ceil(surviving.length / 2));
+    const survivingSet = new Set(surviving);
+    const moveCount = Math.max(1, Math.ceil(surviving.length * 0.75)); // 75%前進で連鎖侵攻を維持
     const movingIds = surviving.slice(0, moveCount);
     const stayingIds = surviving.slice(moveCount);
-    const nonSurviving = from.garrisonIds.filter((id) => !surviving.includes(id));
 
-    state.territories[fromId] = { ...from, garrisonIds: [...stayingIds, ...nonSurviving], hasActed: true };
+    // 戦死した攻撃側: HP=0 かつガリソンから除去（advanceMonth が本拠地帰還を処理）
+    from.garrisonIds.forEach((id) => {
+      if (!survivingSet.has(id) && state.characters[id]) {
+        state.characters[id] = { ...state.characters[id], hp: 0 };
+      }
+    });
+    // 防衛側: HP=0 かつガリソンから除去（即時本拠地帰還させない）
+    to.garrisonIds.forEach((id) => {
+      if (state.characters[id]) {
+        state.characters[id] = { ...state.characters[id], hp: 0 };
+      }
+    });
+
+    // ガリソンには生存者のみ配置（死亡キャラは除去）
+    state.territories[fromId] = { ...from, garrisonIds: stayingIds, hasActed: true };
     state.territories[toId] = { ...to, ownerId: attackerNationId, garrisonIds: movingIds, hasActed: true };
 
-    // 防衛側を本拠地へ退却
-    const defCapId = state.nations[defenderNationId].capitalTerritoryId;
-    if (defCapId) {
-      const defCap = state.territories[defCapId];
-      if (defCap && defCap.ownerId === defenderNationId) {
-        const merged = [...defCap.garrisonIds];
-        to.garrisonIds.forEach((id) => { if (!merged.includes(id)) merged.push(id); });
-        state.territories[defCapId] = { ...defCap, garrisonIds: merged };
-      }
-    }
-
+    // 敗北判定: 首都陥落 OR 残領地3以下
     const capitalCaptured = state.nations[defenderNationId].capitalTerritoryId === toId;
-    const noTerr = Object.values(state.territories).filter((t) => t.ownerId === defenderNationId).length === 0;
-    if (capitalCaptured || noTerr) {
+    const remainingTerr = Object.values(state.territories).filter((t) => t.ownerId === defenderNationId).length;
+    if (capitalCaptured || remainingTerr <= 3) {
       state.nations[defenderNationId] = { ...state.nations[defenderNationId], defeated: true };
     }
   } else {
-    state.territories[fromId] = { ...from, hasActed: true };
+    // 防衛側勝利: 攻撃側全員 HP=0 かつガリソンから除去
+    from.garrisonIds.forEach((id) => {
+      if (state.characters[id]) {
+        state.characters[id] = { ...state.characters[id], hp: 0 };
+      }
+    });
+    // 攻撃側領地は空になる（次ターンは守備なし→占領されやすくなる）
+    state.territories[fromId] = { ...from, garrisonIds: [], hasActed: true };
     if (Object.values(state.territories).filter((t) => t.ownerId === attackerNationId).length === 0) {
       state.nations[attackerNationId] = { ...state.nations[attackerNationId], defeated: true };
     }
@@ -150,10 +161,13 @@ function runNationTurn(state: SimState, nationId: string): void {
     };
   }
 
-  // 侵攻
-  const action = decideAINationAction(nationId, toGS(state) as GameState);
-  if (action.type === 'invade') {
+  // 侵攻（30%確率で2回目）
+  for (let i = 0; i < 2; i++) {
+    if (i === 1 && Math.random() > 0.4) break;
+    const action = decideAINationAction(nationId, toGS(state) as GameState);
+    if (action.type !== 'invade') break;
     applyInvasion(state, action.fromId, action.toId);
+    if (state.winnerId) return;
   }
 }
 
@@ -176,7 +190,7 @@ function advanceMonth(state: SimState): void {
   Object.values(state.territories).forEach((t) => t.garrisonIds.forEach((id) => garrisonedSet.add(id)));
   for (const [id, ch] of Object.entries(state.characters)) {
     if (ch.hp < ch.maxHp) {
-      const recovered = Math.min(ch.maxHp, ch.hp + Math.ceil(ch.maxHp * 0.33));
+      const recovered = Math.min(ch.maxHp, ch.hp + Math.ceil(ch.maxHp * 0.25));
       const wasZero = ch.hp <= 0;
       state.characters[id] = { ...ch, hp: recovered };
 
@@ -197,13 +211,14 @@ function advanceMonth(state: SimState): void {
   state.month++;
 }
 
-function runSimulation(targetNationId: string, maxMonths = 80): SimRunResult {
+function runSimulation(targetNationId: string, maxMonths = 60): SimRunResult {
   const state = buildSimState(targetNationId);
 
   for (let m = 0; m < maxMonths; m++) {
     if (state.winnerId) break;
 
-    const nationIds = Object.keys(state.nations);
+    // 毎ターン国の行動順をシャッフル（同一順序による決定論的結果を防ぐ）
+    const nationIds = Object.keys(state.nations).sort(() => Math.random() - 0.5);
     for (const nid of nationIds) {
       if (state.winnerId) break;
       runNationTurn(state, nid);

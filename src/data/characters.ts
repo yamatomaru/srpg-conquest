@@ -26,51 +26,51 @@ export const CHARACTERS: Record<string, Character> = {
   c_alba_9:  createCharacter('c_alba_9',  '周瑜',               'mage'),
   c_alba_10: createCharacter('c_alba_10', 'DOURAN',             'mage'),
 
-  // === マグナス魔導院（青龍） ===
+  // === マグナス魔導院（青龍）魔術師特化 1盾/1戦/1槍/1弓/6魔 ===
   c_magn_1:  createCharacter('c_magn_1',  '劉邦',               'shielder'),
   c_magn_2:  createCharacter('c_magn_2',  'アッティラ',         'warrior'),
   c_magn_3:  createCharacter('c_magn_3',  'イワン雷帝',         'spearman'),
-  c_magn_4:  createCharacter('c_magn_4',  '斎藤一',             'spearman'),
+  c_magn_4:  createCharacter('c_magn_4',  '斎藤一',             'mage'),
   c_magn_5:  createCharacter('c_magn_5',  'ラクシュミー・バーイ', 'mage'),
   c_magn_6:  createCharacter('c_magn_6',  '徳川家康',           'mage'),
   c_magn_7:  createCharacter('c_magn_7',  '織田信長',           'archer'),
-  c_magn_8:  createCharacter('c_magn_8',  '坂本龍馬',           'archer'),
+  c_magn_8:  createCharacter('c_magn_8',  '坂本龍馬',           'mage'),
   c_magn_9:  createCharacter('c_magn_9',  'マリア・テレジア',   'mage'),
   c_magn_10: createCharacter('c_magn_10', 'カール大帝',         'mage'),
 
-  // === ノルダー氏族（玄武） ===
+  // === ノルダー氏族（玄武）盾士特化 5盾/2戦/2槍/1弓/0魔 ===
   c_nord_1:  createCharacter('c_nord_1',  '虞美人',             'shielder'),
   c_nord_2:  createCharacter('c_nord_2',  '劉備',               'shielder'),
   c_nord_3:  createCharacter('c_nord_3',  'クレオパトラ',       'shielder'),
   c_nord_4:  createCharacter('c_nord_4',  '張飛',               'warrior'),
   c_nord_5:  createCharacter('c_nord_5',  '出雲阿国',           'warrior'),
-  c_nord_6:  createCharacter('c_nord_6',  'サトシ・ナカモト',   'warrior'),
+  c_nord_6:  createCharacter('c_nord_6',  'サトシ・ナカモト',   'shielder'),
   c_nord_7:  createCharacter('c_nord_7',  '黄忠',               'archer'),
-  c_nord_8:  createCharacter('c_nord_8',  '葛飾北斎',           'spearman'),
+  c_nord_8:  createCharacter('c_nord_8',  '葛飾北斎',           'shielder'),
   c_nord_9:  createCharacter('c_nord_9',  'マリー・アントワネット', 'spearman'),
-  c_nord_10: createCharacter('c_nord_10', 'グリム兄弟',         'mage'),
+  c_nord_10: createCharacter('c_nord_10', 'グリム兄弟',         'spearman'),
 
-  // === シルヴァン同盟（黄竜） ===
+  // === シルヴァン同盟（黄竜）槍士寄り均衡 1盾/2戦/4槍/2弓/1魔 ===
   c_silv_1:  createCharacter('c_silv_1',  'ツタンカーメン',     'shielder'),
   c_silv_2:  createCharacter('c_silv_2',  'マルコ・ポーロ',     'spearman'),
   c_silv_3:  createCharacter('c_silv_3',  '呂布',               'warrior'),
   c_silv_4:  createCharacter('c_silv_4',  'YATAGARASU',         'spearman'),
-  c_silv_5:  createCharacter('c_silv_5',  'コロンブス',         'archer'),
-  c_silv_6:  createCharacter('c_silv_6',  'ヴァスコ・ダ・ガマ', 'archer'),
+  c_silv_5:  createCharacter('c_silv_5',  'コロンブス',         'spearman'),
+  c_silv_6:  createCharacter('c_silv_6',  'ヴァスコ・ダ・ガマ', 'spearman'),
   c_silv_7:  createCharacter('c_silv_7',  'ワイアット・アープ', 'archer'),
-  c_silv_8:  createCharacter('c_silv_8',  'カラミティ・ジェーン', 'archer'),
-  c_silv_9:  createCharacter('c_silv_9',  '始皇帝',             'mage'),
+  c_silv_8:  createCharacter('c_silv_8',  'カラミティ・ジェーン', 'warrior'),
+  c_silv_9:  createCharacter('c_silv_9',  '始皇帝',             'archer'),
   c_silv_10: createCharacter('c_silv_10', 'エジソン',           'mage'),
 
-  // === ヴィース小公国（白虎） ===
+  // === ヴィース小公国（白虎）弓師特化 1盾/1戦/2槍/5弓/1魔 ===
   c_vies_1:  createCharacter('c_vies_1',  '曹操',               'shielder'),
-  c_vies_2:  createCharacter('c_vies_2',  'アーサー王',         'shielder'),
+  c_vies_2:  createCharacter('c_vies_2',  'アーサー王',         'archer'),
   c_vies_3:  createCharacter('c_vies_3',  'ジャンヌ・ダルク',   'warrior'),
   c_vies_4:  createCharacter('c_vies_4',  '許褚',               'spearman'),
-  c_vies_5:  createCharacter('c_vies_5',  'プラトン',           'spearman'),
+  c_vies_5:  createCharacter('c_vies_5',  'プラトン',           'archer'),
   c_vies_6:  createCharacter('c_vies_6',  '霧隠才蔵',           'spearman'),
   c_vies_7:  createCharacter('c_vies_7',  '黒髭',               'archer'),
   c_vies_8:  createCharacter('c_vies_8',  'ウィリアム・テル',   'archer'),
-  c_vies_9:  createCharacter('c_vies_9',  '安倍晴明',           'mage'),
+  c_vies_9:  createCharacter('c_vies_9',  '安倍晴明',           'archer'),
   c_vies_10: createCharacter('c_vies_10', 'ラスプーチン',       'mage'),
 };
