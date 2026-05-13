@@ -25,6 +25,20 @@ export default function BattleLog() {
           {entry.defeated
             ? `💀 ${entry.attackerName} → ${entry.defenderName} に ${entry.damage} ダメージ（撃破）`
             : `⚔ ${entry.attackerName} → ${entry.defenderName} に ${entry.damage} ダメージ`}
+          {entry.levelUp && (
+            <span style={{
+              marginLeft: 8,
+              color: '#fbbf24',
+              fontWeight: 'bold',
+              fontSize: 15,
+              background: '#1c1917',
+              border: '1px solid #fbbf24',
+              borderRadius: 3,
+              padding: '0 5px',
+            }}>
+              ★ Lv UP! → Lv{entry.newLevel}
+            </span>
+          )}
         </div>
       ))}
     </div>

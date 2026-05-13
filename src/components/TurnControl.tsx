@@ -1,7 +1,10 @@
+import { useState, useCallback } from 'react';
 import { useGameStore } from '../game/store';
 import { useIsMobile } from '../hooks/useIsMobile';
+import { seSave } from '../game/sound';
 
 const SAVE_KEY = 'srpg-conquest-save';
+const SAVE_TS_KEY = 'srpg-conquest-save-ts';
 
 export default function TurnControl() {
   const { month, currentNationId, nations, winnerId, isAIThinking, autoPlay, fastForward, ui,
@@ -13,6 +16,25 @@ export default function TurnControl() {
   const isPlayerTurn = currentNationId === playerNation.id;
   const canEndTurn = isPlayerTurn && winnerId === null && !isAIThinking;
   const hasSave = !!localStorage.getItem(SAVE_KEY);
+  const [saveMsg, setSaveMsg] = useState('');
+
+  const saveTs = localStorage.getItem(SAVE_TS_KEY);
+  const saveDateStr = saveTs
+    ? new Date(Number(saveTs)).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+    : null;
+
+  const handleSave = useCallback(() => {
+    saveGame();
+    seSave();
+    setSaveMsg('✅ セーブしました');
+    setTimeout(() => setSaveMsg(''), 2000);
+  }, [saveGame]);
+
+  const handleLoad = useCallback(() => {
+    if (window.confirm('セーブデータをロードしますか？現在の進行は失われます。')) {
+      loadGame();
+    }
+  }, [loadGame]);
 
   const btnStyle = (color: string, enabled = true) => ({
     padding: isMobile ? '6px 10px' : '7px 18px',
@@ -77,8 +99,13 @@ export default function TurnControl() {
             style={{ ...btnStyle(ui.activePanel === 'simulation' ? '#7c3aed' : '#374151') }}
             title="シミュレーション">🎲</button>
           {!isMobile && <div style={{ width: 1, background: '#374151', alignSelf: 'stretch', margin: '0 4px' }} />}
-          <button onClick={saveGame} disabled={!canEndTurn} style={btnStyle('#065f46', canEndTurn)} title="セーブ">セーブ</button>
-          <button onClick={loadGame} disabled={!hasSave} style={btnStyle('#1e3a5f', hasSave)} title="ロード">ロード</button>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+            <button onClick={handleSave} disabled={!canEndTurn} style={btnStyle('#065f46', canEndTurn)} title="セーブ">セーブ</button>
+            {saveMsg
+              ? <span style={{ fontSize: 10, color: '#34d399' }}>{saveMsg}</span>
+              : saveDateStr && <span style={{ fontSize: 10, color: '#6b7280' }}>{saveDateStr}</span>}
+          </div>
+          <button onClick={handleLoad} disabled={!hasSave} style={btnStyle('#1e3a5f', hasSave)} title="ロード">ロード</button>
           <button onClick={reset} style={btnStyle('#4b5563')} title="リセット">リセット</button>
           {!isMobile && <div style={{ width: 1, background: '#374151', alignSelf: 'stretch', margin: '0 4px' }} />}
           {autoPlay && (

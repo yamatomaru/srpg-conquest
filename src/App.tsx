@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useGameStore } from './game/store';
 import { useIsMobile } from './hooks/useIsMobile';
 import NationSelect from './components/NationSelect';
@@ -22,12 +23,19 @@ import MercenaryPanel from './components/MercenaryPanel';
 import ObjectivesPanel from './components/ObjectivesPanel';
 import SimulationPanel from './components/SimulationPanel';
 import RecruitPanel from './components/RecruitPanel';
+import Tutorial, { shouldShowTutorial } from './components/Tutorial';
 
 export default function App() {
   const { phase, ui } = useGameStore();
   const isMobile = useIsMobile();
+  const [showTutorial, setShowTutorial] = useState(() => shouldShowTutorial());
 
-  if (phase === 'setup') return <NationSelect />;
+  if (phase === 'setup') return (
+    <>
+      <NationSelect />
+      {showTutorial && <Tutorial onDone={() => setShowTutorial(false)} />}
+    </>
+  );
   if (phase === 'campaign_select') return <CampaignSelect />;
   if (phase === 'campaign_briefing') return <CampaignBriefing />;
   if (phase === 'campaign_debrief') return <CampaignDebrief />;

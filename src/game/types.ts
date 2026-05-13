@@ -153,6 +153,8 @@ export interface BattleLogEntry {
   damage: number;
   defeated: boolean;
   defenderPos: { x: number; y: number };
+  levelUp?: boolean;   // 攻撃者がレベルアップした
+  newLevel?: number;   // レベルアップ後のレベル
 }
 
 export interface BattleState {

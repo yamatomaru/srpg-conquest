@@ -13,6 +13,7 @@ import { decideAINationAction, decideAITransfers } from './strategic/ai';
 import { resolveAutoBattle } from './strategic/autoBattle';
 import { generateTerrain } from './terrain';
 import { generateRandomEvent } from '../data/events';
+import { seAttack, seDefeat, seLevelUp, seVictory, seDefeat2, seSkill, seInvade } from './sound';
 import { INITIAL_OBJECTIVES, checkObjectives } from '../data/objectives';
 import { pickMercPool } from '../data/mercenaries';
 
@@ -553,9 +554,19 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
   reset: () => set(getInitialState()),
 
   saveGame: () => {
-    const { phase, month, currentNationId, nations, territories, winnerId, ui } = get();
-    const data = { phase, month, currentNationId, nations, territories, winnerId, ui: { ...ui, invasionMode: null, invasionPending: null, gameOverShown: false } };
+    const {
+      phase, month, currentNationId, nations, territories, characters,
+      relations, objectives, mercPool, mercDurations,
+      winnerId, campaignProgress, campaignScenario, ui,
+    } = get();
+    const data = {
+      phase, month, currentNationId, nations, territories, characters,
+      relations, objectives, mercPool, mercDurations,
+      winnerId, campaignProgress, campaignScenario,
+      ui: { ...ui, invasionMode: null, invasionPending: null, transferMode: null, transferPending: null, gameOverShown: false },
+    };
     localStorage.setItem('srpg-conquest-save', JSON.stringify(data));
+    localStorage.setItem('srpg-conquest-save-ts', Date.now().toString());
   },
 
   loadGame: () => {
@@ -563,7 +574,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     if (!raw) return;
     try {
       const data = JSON.parse(raw) as Partial<GameState>;
-      set({ ...data, characters: { ...CHARACTERS }, battle: null, isAIThinking: false });
+      set({ ...data, battle: null, isAIThinking: false, currentEvent: null });
     } catch { /* 壊れたセーブは無視 */ }
   },
 
@@ -680,6 +691,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         powerAttackIds: [],
       };
 
+      seInvade();
       const entry = `⚔ ${attackerName}が${defenderName}の「${to.name}」に侵攻`;
       return {
         phase: 'tactical',
@@ -935,6 +947,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
   endBattle: (winnerSide) =>
     set((state) => {
       if (!state.battle) return state;
+      const isPlayer = state.battle.playerSide === winnerSide;
+      setTimeout(() => isPlayer ? seVictory() : seDefeat2(), 100);
       return resolveBattle(state, winnerSide);
     }),
 
@@ -1056,13 +1070,16 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       const isPlayerAtk = state.battle.units.find((u) => u.characterId === attackerId)?.side === state.battle.playerSide;
       const expGain = Math.ceil((damage + (defeated ? 30 : 0)) * (isPlayerAtk ? 1.5 : 1));
       let atkCh = { ...attackerChar, exp: attackerChar.exp + expGain };
-      const lvlThreshold = atkCh.level * 70; // 旧100→70（LvUPしやすく）
+      const lvlThreshold = atkCh.level * 70;
+      let didLevelUp = false;
       if (atkCh.exp >= lvlThreshold) {
+        didLevelUp = true;
         atkCh = {
           ...atkCh,
           exp: atkCh.exp - lvlThreshold,
           level: atkCh.level + 1,
           maxHp: atkCh.maxHp + 3,
+          hp:    Math.min(atkCh.hp + 3, atkCh.maxHp + 3), // LvUP時にHP+3
           atk:   atkCh.atk  + 1,
           def:   atkCh.def  + 1,
           matk:  atkCh.matk + 1,
@@ -1076,12 +1093,18 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         ...(defeated ? { [targetId]: { ...state.characters[targetId], hp: 0 } } : {}),
       };
 
+      // SE
+      if (defeated) seDefeat(); else seAttack();
+      if (didLevelUp) setTimeout(seLevelUp, 150);
+
       const logEntry: BattleLogEntry = {
         attackerName: attackerChar.name,
         defenderName: defenderChar.name,
         damage,
         defeated,
         defenderPos: { ...target.position },
+        levelUp: didLevelUp || undefined,
+        newLevel: didLevelUp ? atkCh.level : undefined,
       };
 
       const attackerUnits = newUnits.filter((u) => u.side === 'attacker');
@@ -1234,6 +1257,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       } else if (jobId === 'archer') {
         skillTargets = getAttackTargets(unit, ch, state.battle.units);
       }
+      seSkill();
       return { battle: { ...state.battle, skillMode: true, skillTargets } };
     });
 
