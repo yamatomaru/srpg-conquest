@@ -1,4 +1,10 @@
 // ============================================================
+// ゲーム設定
+// ============================================================
+
+export type Difficulty = 'easy' | 'normal' | 'hard';
+
+// ============================================================
 // ジョブ・キャラクター
 // ============================================================
 
@@ -69,6 +75,7 @@ export interface Territory {
   position: { x: number; y: number }; // グリッド座標 (col, row)
   income: number;
   hasActed: boolean;
+  building?: BuildingType; // 建設済み建築物
 }
 
 // ============================================================
@@ -80,7 +87,25 @@ export interface InvasionPending {
   toTerritoryId: string;
 }
 
-export type ActivePanel = 'none' | 'troops' | 'diplomacy' | 'mercenary' | 'objectives' | 'simulation' | 'shop' | 'achievements';
+export type ActivePanel = 'none' | 'troops' | 'diplomacy' | 'mercenary' | 'objectives' | 'simulation' | 'shop' | 'achievements' | 'domestic';
+
+// ============================================================
+// 内政・建築
+// ============================================================
+
+export type BuildingType = 'market' | 'barracks' | 'fortress';
+
+export interface BuildingDef {
+  id: BuildingType;
+  name: string;
+  icon: string;
+  cost: number;
+  description: string;
+  /** 収入ボーナス（毎月加算） */
+  incomeBonus: number;
+  /** 自動戦闘の防御側パワー倍率 */
+  defenderMult: number;
+}
 
 export interface UISelection {
   selectedTerritoryId: string | null;

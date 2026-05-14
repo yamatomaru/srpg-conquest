@@ -21,6 +21,7 @@ import { ITEMS } from '../data/items';
 import type { ItemSlot } from '../data/items';
 import { generateRandomMap } from '../data/randomMap';
 import { checkNewAchievements, loadAchievements, saveAchievements, defaultStats } from '../data/achievements';
+import { BUILDINGS } from '../data/buildings';
 
 const INITIAL_UI: UISelection = {
   selectedTerritoryId: null,
@@ -225,6 +226,8 @@ interface GameActions {
   createMarchPlan: (fromId: string, toId: string) => void;
   cancelMarchPlan: (planId: string) => void;
   _executeMarchPlans: () => void;
+  // 内政
+  buildStructure: (territoryId: string, buildingType: import('./types').BuildingType) => void;
   // 実績
   dismissAchievementToast: () => void;
   _updateStats: (patch: Partial<GameState['playerStats']>) => void;
@@ -913,10 +916,11 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       Object.entries(state.territories).map(([id, t]) => [id, { ...t, hasActed: false }]),
     );
 
-    // ── 収入 ──
+    // ── 収入（建築物ボーナスを含む）──
     const incomeByNation: Record<string, number> = {};
     Object.values(newTerritories).forEach((t) => {
-      incomeByNation[t.ownerId] = (incomeByNation[t.ownerId] ?? 0) + t.income;
+      const buildingBonus = t.building ? (BUILDINGS[t.building]?.incomeBonus ?? 0) : 0;
+      incomeByNation[t.ownerId] = (incomeByNation[t.ownerId] ?? 0) + t.income + buildingBonus;
     });
     const newNations = Object.fromEntries(
       Object.entries(state.nations).map(([id, n]) => [id, { ...n, gold: n.gold + (incomeByNation[id] ?? 0) }]),
@@ -1905,6 +1909,26 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       checkNewAchievements(newStats, new Set(newUnlocked)).forEach((id) => { newUnlocked.push(id); newToasts.push(id); });
       saveAchievements({ unlockedIds: newUnlocked, stats: newStats });
       return { playerStats: newStats, unlockedAchievementIds: newUnlocked, pendingAchievementToasts: newToasts };
+    }),
+
+  buildStructure: (territoryId, buildingType) =>
+    set((state) => {
+      const player = Object.values(state.nations).find((n) => n.isPlayer);
+      if (!player) return state;
+      const territory = state.territories[territoryId];
+      if (!territory || territory.ownerId !== player.id) return state;
+      if (territory.building) return state; // 建設済み
+
+      const def = BUILDINGS[buildingType];
+      if (!def || player.gold < def.cost) return state;
+
+      return {
+        nations: { ...state.nations, [player.id]: { ...player, gold: player.gold - def.cost } },
+        territories: {
+          ...state.territories,
+          [territoryId]: { ...territory, building: buildingType },
+        },
+      };
     }),
 
   togglePanel: (panel) =>

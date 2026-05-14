@@ -28,6 +28,7 @@ import ShopPanel from './components/ShopPanel';
 import AchievementsPanel from './components/AchievementsPanel';
 import AchievementToast from './components/AchievementToast';
 import TerrainLegend from './components/TerrainLegend';
+import DomesticPanel from './components/DomesticPanel';
 import Tutorial, { shouldShowTutorial } from './components/Tutorial';
 
 export default function App() {
@@ -117,6 +118,7 @@ export default function App() {
       {ui.activePanel === 'simulation' && <SimulationPanel />}
       {ui.activePanel === 'shop' && <ShopPanel />}
       {ui.activePanel === 'achievements' && <AchievementsPanel />}
+      {ui.activePanel === 'domestic' && <DomesticPanel />}
       <AchievementToast />
     </div>
   );
