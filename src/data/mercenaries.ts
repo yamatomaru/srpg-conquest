@@ -25,6 +25,13 @@ const BASE_MERCS: MercTemplate[] = [
   { id: 'merc_9',  name: '槍姫アデラ',         jobId: 'spearman', level: 5, cost: 230, faction: '白虎' },
   { id: 'merc_c2', name: '魔剣士クロウ',       jobId: 'warrior',  level: 5, cost: 260, faction: '朱雀' },
   { id: 'merc_c3', name: '賢者エルミナ',       jobId: 'mage',     level: 5, cost: 250, faction: '青龍' },
+  // 新職業
+  { id: 'merc_k1', name: '鉄騎士バルドル',     jobId: 'knight',   level: 3, cost: 170, faction: '朱雀' },
+  { id: 'merc_k2', name: '突撃騎士イレーヌ',   jobId: 'knight',   level: 4, cost: 210, faction: '玄武' },
+  { id: 'merc_k3', name: '銀騎士テオドール',   jobId: 'knight',   level: 5, cost: 270, faction: '黄竜' },
+  { id: 'merc_p1', name: '修道士フェルン',      jobId: 'priest',   level: 3, cost: 150, faction: '白虎' },
+  { id: 'merc_p2', name: '聖女エスメラルダ',   jobId: 'priest',   level: 4, cost: 190, faction: '青龍' },
+  { id: 'merc_p3', name: '大司教ロレンゾ',     jobId: 'priest',   level: 5, cost: 240, faction: '黄竜' },
 ];
 
 // MyCryptoHeroes ヒーロー傭兵

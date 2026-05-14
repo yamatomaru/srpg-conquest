@@ -1557,7 +1557,29 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         return { characters: newCharacters, battle: newBattle };
       }
 
-      // 要ターゲット選択: 槍士（突撃）・弓師（連射）
+      // 僧侶: 聖なる回復 – 射程内の味方全員をMATK*1.5で即時回復（ターゲット選択不要）
+      if (jobId === 'priest') {
+        const allies = state.battle.units.filter((u) => u.side === unit.side);
+        let newUnits = [...state.battle.units];
+        const newCharacters = { ...state.characters };
+        const healRange = ch.range;
+
+        allies.forEach((ally) => {
+          const dist = Math.abs(unit.position.x - ally.position.x) + Math.abs(unit.position.y - ally.position.y);
+          if (dist > healRange) return;
+          const allyCh = newCharacters[ally.characterId];
+          const healAmt = Math.floor(ch.matk * 1.5);
+          const newHp = Math.min(allyCh.maxHp, ally.currentHp + healAmt);
+          newUnits = newUnits.map((u) => u.characterId === ally.characterId ? { ...u, currentHp: newHp } : u);
+        });
+
+        newUnits = newUnits.map((u) => u.characterId === unitId ? { ...u, usedSkill: true, hasActed: true } : u);
+        seSkill();
+        const advanced = doAdvanceInitiative({ ...state.battle, units: newUnits, recentLog: [{ attackerName: ch.name, defenderName: '味方', damage: 0, defeated: false, defenderPos: unit.position } as BattleLogEntry, ...state.battle.recentLog].slice(0, 10), skillMode: false, skillTargets: [] as string[] });
+        return { battle: advanced };
+      }
+
+      // 要ターゲット選択: 槍士（突撃）・弓師（連射）・騎士（二連撃）
       let skillTargets: string[] = [];
       if (jobId === 'spearman') {
         skillTargets = state.battle.units
@@ -1567,7 +1589,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
             return dist >= 1 && dist <= ch.range + 1;
           })
           .map((u) => u.characterId);
-      } else if (jobId === 'archer') {
+      } else if (jobId === 'archer' || jobId === 'knight') {
         skillTargets = getAttackTargets(unit, ch, state.battle.units);
       }
       seSkill();
@@ -1623,8 +1645,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       if (ch.jobId === 'spearman') {
         // 突撃: 1回攻撃（延長射程）
         ({ units: newUnits, chars: newChars, terminated } = applyHit(newUnits, newChars, logEntries));
-      } else if (ch.jobId === 'archer') {
-        // 連射: 2回攻撃
+      } else if (ch.jobId === 'archer' || ch.jobId === 'knight') {
+        // 連射 / 二連撃: 2回攻撃
         for (let i = 0; i < 2 && !terminated; i++) {
           ({ units: newUnits, chars: newChars, terminated } = applyHit(newUnits, newChars, logEntries));
         }

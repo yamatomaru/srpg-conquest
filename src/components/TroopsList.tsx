@@ -4,7 +4,7 @@ import { useIsMobile } from '../hooks/useIsMobile';
 
 const JOB_COLOR: Record<string, string> = {
   shielder: '#6b7280', warrior: '#ef4444', spearman: '#f59e0b',
-  archer: '#22c55e', mage: '#a855f7',
+  archer: '#22c55e', mage: '#a855f7', knight: '#f97316', priest: '#ec4899',
 };
 
 export default function TroopsList() {

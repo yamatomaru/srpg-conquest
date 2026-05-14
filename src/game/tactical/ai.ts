@@ -13,7 +13,7 @@ function manhattan(a: { x: number; y: number }, b: { x: number; y: number }) {
 }
 
 /**
- * 射程持ち（弓師・魔術師・槍士）向け：
+ * 射程持ち（弓師・魔術師・槍士・僧侶）向け：
  * - 射程内に届くセルがあれば → 近接敵から最も安全なセルを選ぶ
  * - まだ射程に届かない場合 → ターゲットに近づく（安全度は無視）
  */
@@ -57,6 +57,7 @@ export function decideAIUnitAction(
 ): AIAction {
   const ch = characters[unit.characterId];
   const enemies = battle.units.filter((u) => u.side !== unit.side);
+  const allies = battle.units.filter((u) => u.side === unit.side);
 
   if (enemies.length === 0) return { type: 'wait', unitId: unit.characterId };
 
@@ -77,6 +78,17 @@ export function decideAIUnitAction(
 
     // 弓師: 射程内に敵がいれば連射（2回攻撃 > 1回攻撃）
     if (jobId === 'archer') {
+      const targets = getAttackTargets(unit, ch, battle.units);
+      if (targets.length > 0) {
+        const target = battle.units
+          .filter((u) => targets.includes(u.characterId))
+          .sort((a, b) => a.currentHp - b.currentHp)[0];
+        return { type: 'skill', unitId: unit.characterId, targetId: target.characterId };
+      }
+    }
+
+    // 騎士: 射程内に敵がいれば二連撃
+    if (jobId === 'knight') {
       const targets = getAttackTargets(unit, ch, battle.units);
       if (targets.length > 0) {
         const target = battle.units
@@ -110,6 +122,19 @@ export function decideAIUnitAction(
     if (jobId === 'shielder' && unit.currentHp < ch.maxHp * 0.6) {
       return { type: 'skill', unitId: unit.characterId };
     }
+
+    // 僧侶: 射程内に HPが70%未満の味方がいれば回復スキル発動
+    if (jobId === 'priest') {
+      const woundedAlly = allies.find((a) => {
+        const allyCh = characters[a.characterId];
+        if (!allyCh) return false;
+        const dist = manhattan(unit.position, a.position);
+        return dist <= ch.range && a.currentHp < allyCh.maxHp * 0.7;
+      });
+      if (woundedAlly) {
+        return { type: 'skill', unitId: unit.characterId };
+      }
+    }
   }
 
   // 攻撃可能なら最も HP の低い敵を攻撃
@@ -127,6 +152,21 @@ export function decideAIUnitAction(
 
     const meleeEnemies = enemies.filter((e) => characters[e.characterId]?.range === 1);
 
+    if (ch.jobId === 'priest') {
+      // 僧侶: 最も瀕死の味方に近づく
+      const woundedAlly = [...allies].sort((a, b) => {
+        const aCh = characters[a.characterId];
+        const bCh = characters[b.characterId];
+        const aRatio = aCh ? a.currentHp / aCh.maxHp : 1;
+        const bRatio = bCh ? b.currentHp / bCh.maxHp : 1;
+        return aRatio - bRatio;
+      })[0];
+      const bestCell = [...reachable].sort(
+        (a, b) => manhattan(a, woundedAlly.position) - manhattan(b, woundedAlly.position),
+      )[0];
+      return { type: 'move', unitId: unit.characterId, to: bestCell };
+    }
+
     if (ch.range >= 2) {
       // 槍士・弓師・魔術師：最も弱い敵に射程距離から攻撃
       const targetEnemy = [...enemies].sort((a, b) => a.currentHp - b.currentHp)[0];
@@ -134,7 +174,7 @@ export function decideAIUnitAction(
       const best = bestRangedCell(reachable, targetEnemy, ch.range, safeEnemies);
       if (best) return { type: 'move', unitId: unit.characterId, to: best };
     } else {
-      // 盾士・戦士：最近傍の敵へ直進
+      // 盾士・戦士・騎士：最近傍の敵へ直進
       const nearest = [...enemies].sort(
         (a, b) => manhattan(unit.position, a.position) - manhattan(unit.position, b.position),
       )[0];
