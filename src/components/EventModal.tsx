@@ -1,7 +1,7 @@
 import { useGameStore } from '../game/store';
 
 export default function EventModal() {
-  const { currentEvent, dismissEvent } = useGameStore();
+  const { currentEvent, dismissEvent, autoPlay, fastForward, toggleAutoPlay, toggleFastForward } = useGameStore();
   if (!currentEvent) return null;
 
   return (
@@ -40,6 +40,37 @@ export default function EventModal() {
         >
           了解
         </button>
+
+        {/* AUTO中はモーダルの中からでも操作できるようにする */}
+        {autoPlay && (
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 16 }}>
+            <button
+              onClick={toggleFastForward}
+              title={fastForward ? '通常速度に戻す' : '高速化'}
+              style={{
+                padding: '6px 14px', fontSize: 13, fontWeight: 'bold',
+                background: fastForward ? '#92400e' : '#374151',
+                color: fastForward ? '#fbbf24' : '#d1d5db',
+                border: `1px solid ${fastForward ? '#f59e0b' : '#4b5563'}`,
+                borderRadius: 6, cursor: 'pointer',
+              }}
+            >
+              {fastForward ? '⚡ 高速中' : '⚡ 高速化'}
+            </button>
+            <button
+              onClick={toggleAutoPlay}
+              title="AUTOを停止"
+              style={{
+                padding: '6px 14px', fontSize: 13, fontWeight: 'bold',
+                background: '#7f1d1d', color: '#fca5a5',
+                border: '1px solid #ef4444',
+                borderRadius: 6, cursor: 'pointer',
+              }}
+            >
+              ⏹ AUTO停止
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
