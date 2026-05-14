@@ -2,7 +2,7 @@
 // ジョブ・キャラクター
 // ============================================================
 
-export type JobId = 'shielder' | 'warrior' | 'spearman' | 'archer' | 'mage';
+export type JobId = 'shielder' | 'warrior' | 'spearman' | 'archer' | 'mage' | 'knight' | 'priest';
 
 export type TerrainType = 'plain' | 'forest' | 'mountain' | 'fortress';
 

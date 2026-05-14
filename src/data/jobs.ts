@@ -86,6 +86,36 @@ export const JOBS: Record<JobId, Job> = {
     skillId: 'area_magic',
     skillName: '全体魔法',
   },
+  knight: {
+    id: 'knight',
+    name: '騎士',
+    description: '高い機動力と攻撃力を誇る近衛騎士。二連撃で敵を圧倒する。',
+    baseHp: 36,
+    baseAtk: 13,
+    baseDef: 7,
+    baseMatk: 3,
+    baseMdef: 5,
+    baseMov: 5,
+    baseRange: 1,
+    spritePath: '/sprites/knight.png',
+    skillId: 'dual_strike',
+    skillName: '二連撃',
+  },
+  priest: {
+    id: 'priest',
+    name: '僧侶',
+    description: '聖なる魔法で味方を回復する後方支援職。直接攻撃は苦手。',
+    baseHp: 20,
+    baseAtk: 4,
+    baseDef: 3,
+    baseMatk: 8,
+    baseMdef: 10,
+    baseMov: 3,
+    baseRange: 2,
+    spritePath: '/sprites/priest.png',
+    skillId: 'holy_heal',
+    skillName: '聖なる回復',
+  },
 };
 
 export const JOB_ABBR: Record<JobId, string> = {
@@ -94,4 +124,6 @@ export const JOB_ABBR: Record<JobId, string> = {
   spearman: '槍',
   archer:   '弓',
   mage:     '魔',
+  knight:   '騎',
+  priest:   '僧',
 };

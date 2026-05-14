@@ -105,6 +105,39 @@ export default function JobIcon({ jobId, size = 48, color = '#fff' }: Props) {
         </svg>
       );
 
+    case 'knight':
+      // 騎士の兜
+      return (
+        <svg width={s} height={s} viewBox="0 0 48 48">
+          {/* 兜の本体 */}
+          <path d="M12 28 L12 18 Q12 6 24 6 Q36 6 36 18 L36 28 Z" fill={color} fillOpacity={0.9} />
+          {/* バイザー */}
+          <rect x={12} y={28} width={24} height={8} rx={2} fill={color} fillOpacity={0.7} />
+          {/* スリット */}
+          <line x1={14} y1={30} x2={34} y2={30} stroke={color} strokeWidth={1.5} strokeOpacity={0.3} />
+          <line x1={14} y1={33} x2={34} y2={33} stroke={color} strokeWidth={1.5} strokeOpacity={0.3} />
+          {/* 羽飾り */}
+          <path d="M24 6 Q20 2 16 4 Q20 4 24 8" fill={color} fillOpacity={0.6} />
+          <path d="M24 6 Q28 2 32 4 Q28 4 24 8" fill={color} fillOpacity={0.6} />
+          {/* 首当て */}
+          <path d="M10 36 Q10 44 24 44 Q38 44 38 36 L36 36 Q36 40 24 40 Q12 40 12 36 Z" fill={color} fillOpacity={0.5} />
+        </svg>
+      );
+
+    case 'priest':
+      // 聖なる十字と光輪
+      return (
+        <svg width={s} height={s} viewBox="0 0 48 48">
+          {/* 光輪 */}
+          <circle cx={c} cy={c} r={20} fill="none" stroke={color} strokeWidth={2} strokeOpacity={0.4} strokeDasharray="4 3" />
+          {/* 十字架 */}
+          <rect x={21} y={8} width={6} height={32} rx={2} fill={color} fillOpacity={0.9} />
+          <rect x={10} y={18} width={28} height={6} rx={2} fill={color} fillOpacity={0.9} />
+          {/* 輝き */}
+          <circle cx={c} cy={c} r={5} fill={color} fillOpacity={0.3} />
+        </svg>
+      );
+
     default:
       return (
         <svg width={s} height={s} viewBox="0 0 48 48">

@@ -31,9 +31,11 @@ const JOB_LABEL: Record<string, { short: string; color: string }> = {
   spearman: { short: '槍', color: '#4ade80' },
   archer:   { short: '弓', color: '#facc15' },
   mage:     { short: '魔', color: '#c084fc' },
+  knight:   { short: '騎', color: '#fb923c' },
+  priest:   { short: '僧', color: '#f472b6' },
 };
 
-const JOB_ORDER = ['shielder', 'warrior', 'spearman', 'archer', 'mage'];
+const JOB_ORDER = ['shielder', 'warrior', 'spearman', 'archer', 'mage', 'knight', 'priest'];
 
 function getNationComposition(nationId: string): Record<string, number> {
   const counts: Record<string, number> = {};
