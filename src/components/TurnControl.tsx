@@ -95,6 +95,11 @@ export default function TurnControl() {
             title="傭兵雇用">💰 傭兵</button>
           {!isMobile && <div style={{ width: 1, background: '#374151', alignSelf: 'stretch', margin: '0 4px' }} />}
           <button
+            onClick={() => togglePanel('shop')}
+            disabled={!isPlayerTurn}
+            style={{ ...btnStyle(ui.activePanel === 'shop' ? '#b45309' : '#374151', isPlayerTurn) }}
+            title="装備屋">⚔ 装備</button>
+          <button
             onClick={() => togglePanel('simulation')}
             style={{ ...btnStyle(ui.activePanel === 'simulation' ? '#7c3aed' : '#374151') }}
             title="シミュレーション">🎲</button>

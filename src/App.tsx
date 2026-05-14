@@ -24,6 +24,7 @@ import MercenaryPanel from './components/MercenaryPanel';
 import ObjectivesPanel from './components/ObjectivesPanel';
 import SimulationPanel from './components/SimulationPanel';
 import RecruitPanel from './components/RecruitPanel';
+import ShopPanel from './components/ShopPanel';
 import Tutorial, { shouldShowTutorial } from './components/Tutorial';
 
 export default function App() {
@@ -110,6 +111,7 @@ export default function App() {
       {ui.activePanel === 'diplomacy' && <DiplomacyPanel />}
       {ui.activePanel === 'mercenary' && <MercenaryPanel />}
       {ui.activePanel === 'simulation' && <SimulationPanel />}
+      {ui.activePanel === 'shop' && <ShopPanel />}
     </div>
   );
 }
