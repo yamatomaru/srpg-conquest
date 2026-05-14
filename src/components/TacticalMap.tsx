@@ -5,6 +5,7 @@ import { TERRAIN_DEFS } from '../game/terrain';
 import { calcReachable } from '../game/tactical/movement';
 import { calculateDamage } from '../game/tactical/attack';
 import type { TerrainType } from '../game/types';
+import JobIcon from './JobIcon';
 
 const CELL = 90;
 const PADDING = 36;
@@ -64,6 +65,7 @@ export default function TacticalMap() {
   const { battle, characters, nations, isAIThinking, selectUnit, moveUnit, attackUnit, moveAndAttack, executeSkill, endBattle } = useGameStore();
   const [popups, setPopups] = useState<Popup[]>([]);
   const [hoveredCell, setHoveredCell] = useState<{ x: number; y: number } | null>(null);
+  const [spriteErrors, setSpriteErrors] = useState<Record<string, 'char_failed' | 'job_failed'>>({});
   const prevLogRef = useRef(battle?.recentLog[0] ?? null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);

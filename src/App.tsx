@@ -25,9 +25,10 @@ import ObjectivesPanel from './components/ObjectivesPanel';
 import SimulationPanel from './components/SimulationPanel';
 import RecruitPanel from './components/RecruitPanel';
 import ShopPanel from './components/ShopPanel';
-import Tutorial, { shouldShowTutorial } from './components/Tutorial';
 import AchievementsPanel from './components/AchievementsPanel';
 import AchievementToast from './components/AchievementToast';
+import TerrainLegend from './components/TerrainLegend';
+import Tutorial, { shouldShowTutorial } from './components/Tutorial';
 
 export default function App() {
   const { phase, ui } = useGameStore();
@@ -115,6 +116,8 @@ export default function App() {
       {ui.activePanel === 'mercenary' && <MercenaryPanel />}
       {ui.activePanel === 'simulation' && <SimulationPanel />}
       {ui.activePanel === 'shop' && <ShopPanel />}
+      {ui.activePanel === 'achievements' && <AchievementsPanel />}
+      <AchievementToast />
     </div>
   );
 }

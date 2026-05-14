@@ -80,7 +80,7 @@ export interface InvasionPending {
   toTerritoryId: string;
 }
 
-export type ActivePanel = 'none' | 'troops' | 'diplomacy' | 'mercenary' | 'objectives' | 'simulation' | 'shop';
+export type ActivePanel = 'none' | 'troops' | 'diplomacy' | 'mercenary' | 'objectives' | 'simulation' | 'shop' | 'achievements';
 
 export interface UISelection {
   selectedTerritoryId: string | null;

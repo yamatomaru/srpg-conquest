@@ -20,6 +20,7 @@ import { pickMercPool } from '../data/mercenaries';
 import { ITEMS } from '../data/items';
 import type { ItemSlot } from '../data/items';
 import { generateRandomMap } from '../data/randomMap';
+import { checkNewAchievements, loadAchievements, saveAchievements, defaultStats } from '../data/achievements';
 
 const INITIAL_UI: UISelection = {
   selectedTerritoryId: null,
