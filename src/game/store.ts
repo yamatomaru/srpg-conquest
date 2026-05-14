@@ -12,7 +12,7 @@ import { decideAIUnitAction } from './tactical/ai';
 import { decideAINationAction, decideAITransfers } from './strategic/ai';
 import { resolveAutoBattle } from './strategic/autoBattle';
 import { findMarchPath } from './strategic/pathfinding';
-import { generateTerrain } from './terrain';
+import { generateTerrain, TERRAIN_DEFS as TERRAIN_DEFS_STORE } from './terrain';
 import { generateRandomEvent } from '../data/events';
 import { seAttack, seDefeat, seLevelUp, seVictory, seDefeat2, seSkill, seInvade } from './sound';
 import { INITIAL_OBJECTIVES, checkObjectives } from '../data/objectives';
@@ -1128,6 +1128,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       if (defeated) seDefeat(); else seAttack();
       if (didLevelUp) setTimeout(seLevelUp, 150);
 
+      const terrainDef = TERRAIN_DEFS_STORE[terrain];
+      const terrainBonus = attackerChar.jobId === 'mage' ? terrainDef.mdefBonus : terrainDef.defBonus;
       const logEntry: BattleLogEntry = {
         attackerName: attackerChar.name,
         defenderName: defenderChar.name,
@@ -1136,6 +1138,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         defenderPos: { ...target.position },
         levelUp: didLevelUp || undefined,
         newLevel: didLevelUp ? atkCh.level : undefined,
+        terrainType: terrain !== 'plain' ? terrain : undefined,
+        terrainBonus: terrainBonus > 0 ? terrainBonus : undefined,
       };
 
       const attackerUnits = newUnits.filter((u) => u.side === 'attacker');
@@ -1323,7 +1327,9 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
           const dmg = calculateDamage(ch, eCh, terrain, false);
           const newHp = enemy.currentHp - dmg;
           const defeated = newHp <= 0;
-          logEntries.push({ attackerName: ch.name, defenderName: state.characters[enemy.characterId].name, damage: dmg, defeated, defenderPos: { ...enemy.position } });
+          const terrainDef2 = TERRAIN_DEFS_STORE[terrain];
+          const tBonus2 = terrainDef2.mdefBonus;
+          logEntries.push({ attackerName: ch.name, defenderName: state.characters[enemy.characterId].name, damage: dmg, defeated, defenderPos: { ...enemy.position }, terrainType: terrain !== 'plain' ? terrain : undefined, terrainBonus: tBonus2 > 0 ? tBonus2 : undefined });
           if (defeated) {
             newCharacters[enemy.characterId] = { ...newCharacters[enemy.characterId], hp: 0 };
             newUnits = newUnits.filter((u) => u.characterId !== enemy.characterId);
@@ -1403,7 +1409,9 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         const dmg = calculateDamage(ch, buffedDef, terrain, false);
         const newHp = t.currentHp - dmg;
         const defeated = newHp <= 0;
-        entries.push({ attackerName: ch.name, defenderName: defenderChar.name, damage: dmg, defeated, defenderPos: { ...t.position } });
+        const tDef3 = TERRAIN_DEFS_STORE[terrain];
+        const tBonus3 = ch.jobId === 'mage' ? tDef3.mdefBonus : tDef3.defBonus;
+        entries.push({ attackerName: ch.name, defenderName: defenderChar.name, damage: dmg, defeated, defenderPos: { ...t.position }, terrainType: terrain !== 'plain' ? terrain : undefined, terrainBonus: tBonus3 > 0 ? tBonus3 : undefined });
         let units = currentUnits.map((u) => u.characterId === targetId ? { ...u, currentHp: newHp } : u);
         const newChars = { ...chars };
         if (defeated) { newChars[targetId] = { ...chars[targetId], hp: 0 }; units = units.filter((u) => u.characterId !== targetId); }

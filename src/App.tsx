@@ -25,6 +25,7 @@ import ObjectivesPanel from './components/ObjectivesPanel';
 import SimulationPanel from './components/SimulationPanel';
 import RecruitPanel from './components/RecruitPanel';
 import Tutorial, { shouldShowTutorial } from './components/Tutorial';
+import TerrainLegend from './components/TerrainLegend';
 
 export default function App() {
   const { phase, ui } = useGameStore();
@@ -57,6 +58,7 @@ export default function App() {
         <TacticalControl />
         <InitiativeBar />
         <TacticalMap />
+        <TerrainLegend />
         <BattleLog />
       </div>
     );

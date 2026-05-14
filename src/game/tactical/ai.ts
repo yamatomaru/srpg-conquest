@@ -14,7 +14,8 @@ function manhattan(a: { x: number; y: number }, b: { x: number; y: number }) {
 
 /**
  * 射程持ち（弓師・魔術師・槍士）向け：
- * 近接敵から安全距離を保ちつつターゲットに射程が届く最適ポジション。
+ * - 射程内に届くセルがあれば → 近接敵から最も安全なセルを選ぶ
+ * - まだ射程に届かない場合 → ターゲットに近づく（安全度は無視）
  */
 function bestRangedCell(
   reachable: { x: number; y: number }[],
@@ -27,16 +28,21 @@ function bestRangedCell(
     return d >= 1 && d <= ownRange;
   });
 
-  const candidates = inRangeCells.length > 0 ? inRangeCells : reachable;
-
-  if (meleeEnemies.length === 0) {
-    // 近接敵なし → ターゲットに最も近いセルへ
-    return [...candidates].sort(
+  // 射程に届かない場合はターゲットへ近づくだけ（安全度ソートは逆効果になる）
+  if (inRangeCells.length === 0) {
+    return [...reachable].sort(
       (a, b) => manhattan(a, target.position) - manhattan(b, target.position),
     )[0] ?? null;
   }
 
-  return [...candidates].sort((a, b) => {
+  // 射程内セルあり → 近接敵から安全なポジションを選ぶ
+  if (meleeEnemies.length === 0) {
+    return [...inRangeCells].sort(
+      (a, b) => manhattan(a, target.position) - manhattan(b, target.position),
+    )[0] ?? null;
+  }
+
+  return [...inRangeCells].sort((a, b) => {
     const safenessA = Math.min(...meleeEnemies.map((e) => manhattan(a, e.position)));
     const safenessB = Math.min(...meleeEnemies.map((e) => manhattan(b, e.position)));
     if (safenessB !== safenessA) return safenessB - safenessA;

@@ -175,8 +175,10 @@ export interface BattleLogEntry {
   damage: number;
   defeated: boolean;
   defenderPos: { x: number; y: number };
-  levelUp?: boolean;   // 攻撃者がレベルアップした
-  newLevel?: number;   // レベルアップ後のレベル
+  levelUp?: boolean;    // 攻撃者がレベルアップした
+  newLevel?: number;    // レベルアップ後のレベル
+  terrainType?: TerrainType;  // 防御側の地形
+  terrainBonus?: number;      // 地形による防御補正値（>0 なら軽減あり）
 }
 
 export interface BattleState {
