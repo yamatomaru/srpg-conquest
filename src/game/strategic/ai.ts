@@ -1,4 +1,4 @@
-import type { GameState, Territory } from '../types';
+import type { Difficulty, GameState, Territory } from '../types';
 
 export type StrategicAction =
   | { type: 'invade'; fromId: string; toId: string }
@@ -173,22 +173,55 @@ function decideByakko(nationId: string, state: GameState, alliancePlayerId?: str
   return { type: 'invade', fromId: candidates[0].from, toId: candidates[0].to };
 }
 
+// ── Hard 専用：pass 時の強行侵攻 ─────────────────────
+
+function hardForcedInvade(nationId: string, state: GameState, alliancePlayerId?: string): StrategicAction {
+  const mine = getMyTerritories(nationId, state);
+  const candidates: { from: string; to: string; score: number }[] = [];
+  for (const from of mine) {
+    for (const adj of getEnemyAdj(from, nationId, state, alliancePlayerId)) {
+      // Hard: 0.6 倍でも侵攻する（通常より積極的）
+      if (liveCount(from, state) >= liveCount(adj, state) * 0.6) {
+        candidates.push({ from: from.id, to: adj.id, score: liveCount(adj, state) - liveCount(from, state) });
+      }
+    }
+  }
+  if (candidates.length === 0) return { type: 'pass' };
+  candidates.sort((a, b) => a.score - b.score);
+  return { type: 'invade', fromId: candidates[0].from, toId: candidates[0].to };
+}
+
 // ── 公開API ──────────────────────────────────────────
 
-export function decideAINationAction(nationId: string, state: GameState): StrategicAction {
+export function decideAINationAction(
+  nationId: string,
+  state: GameState,
+  difficulty: Difficulty = 'normal',
+): StrategicAction {
   const nation = state.nations[nationId];
   const playerNationId = Object.values(state.nations).find((n) => n.isPlayer)?.id ?? '';
   const allianceWithPlayer = state.relations?.[nationId]?.status === 'alliance';
   const skipPlayer = allianceWithPlayer ? playerNationId : undefined;
 
+  // Easy: 50% の確率で侵攻をパス
+  if (difficulty === 'easy' && Math.random() < 0.5) return { type: 'pass' };
+
+  let result: StrategicAction;
   switch (nation?.faction) {
-    case '朱雀': return decideSuzaku(nationId, state, skipPlayer);
-    case '青龍': return decideSeiryu(nationId, state, skipPlayer);
-    case '玄武': return decideGenbu(nationId, state, skipPlayer);
-    case '黄竜': return decideKoryu(nationId, state, skipPlayer);
-    case '白虎': return decideByakko(nationId, state, skipPlayer);
-    default:     return decideSuzaku(nationId, state, skipPlayer);
+    case '朱雀': result = decideSuzaku(nationId, state, skipPlayer); break;
+    case '青龍': result = decideSeiryu(nationId, state, skipPlayer); break;
+    case '玄武': result = decideGenbu(nationId, state, skipPlayer); break;
+    case '黄竜': result = decideKoryu(nationId, state, skipPlayer); break;
+    case '白虎': result = decideByakko(nationId, state, skipPlayer); break;
+    default:     result = decideSuzaku(nationId, state, skipPlayer); break;
   }
+
+  // Hard: 通常判断が pass なら強行侵攻を試みる
+  if (difficulty === 'hard' && result.type === 'pass') {
+    return hardForcedInvade(nationId, state, skipPlayer);
+  }
+
+  return result;
 }
 
 // ── 兵力移動：勢力別 ─────────────────────────────────

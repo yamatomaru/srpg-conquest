@@ -1,10 +1,11 @@
-import type { GameState } from '../types';
+import type { Difficulty, GameState } from '../types';
 
 /** AI同士（またはプレイヤー不在）の戦闘を兵力比で自動解決 */
 export function resolveAutoBattle(
   state: GameState,
   fromId: string,
   toId: string,
+  difficulty: Difficulty = 'normal',
 ): { winnerSide: 'attacker' | 'defender'; survivingAttackerIds: string[] } {
   const from = state.territories[fromId];
   const to = state.territories[toId];
@@ -19,8 +20,9 @@ export function resolveAutoBattle(
   const aliveAttackerIds = from.garrisonIds.filter((id) => (state.characters[id]?.hp ?? 0) > 0);
   const aliveDefenderIds = to.garrisonIds.filter((id) => (state.characters[id]?.hp ?? 0) > 0);
 
-  // 攻撃側に20%ボーナス（先手利・攻勢の優位）。防衛DEFボーナスは廃止
-  const rawAttacker = aliveAttackerIds.reduce((s, id) => s + unitPower(id), 0) * 1.2;
+  // 難易度別攻撃側ボーナス（Easy: 先手利なし / Normal: +20% / Hard: +40%）
+  const attackerBonus = difficulty === 'easy' ? 1.0 : difficulty === 'hard' ? 1.4 : 1.2;
+  const rawAttacker = aliveAttackerIds.reduce((s, id) => s + unitPower(id), 0) * attackerBonus;
   const rawDefender = aliveDefenderIds.reduce((s, id) => s + unitPower(id), 0);
 
   // ±20%の戦場ランダム要素（地形・士気・指揮の不確定性）

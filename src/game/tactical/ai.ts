@@ -1,4 +1,4 @@
-import type { BattleState, BattleUnit, Character } from '../types';
+import type { BattleState, BattleUnit, Character, Difficulty } from '../types';
 import { calcReachable } from './movement';
 import { getAttackTargets } from './attack';
 
@@ -54,6 +54,7 @@ export function decideAIUnitAction(
   unit: BattleUnit,
   characters: Record<string, Character>,
   battle: BattleState,
+  difficulty: Difficulty = 'normal',
 ): AIAction {
   const ch = characters[unit.characterId];
   const enemies = battle.units.filter((u) => u.side !== unit.side);
@@ -112,12 +113,14 @@ export function decideAIUnitAction(
     }
   }
 
-  // 攻撃可能なら最も HP の低い敵を攻撃
+  // 攻撃可能なら攻撃（Easy: 40%の確率でランダム選択、Normal/Hard: HP低い敵優先）
   const attackTargets = getAttackTargets(unit, ch, battle.units);
   if (attackTargets.length > 0) {
-    const target = attackTargets
-      .map((id) => battle.units.find((u) => u.characterId === id)!)
-      .sort((a, b) => a.currentHp - b.currentHp)[0];
+    const targetUnits = attackTargets.map((id) => battle.units.find((u) => u.characterId === id)!);
+    const useRandom = difficulty === 'easy' && Math.random() < 0.4;
+    const target = useRandom
+      ? targetUnits[Math.floor(Math.random() * targetUnits.length)]
+      : targetUnits.sort((a, b) => a.currentHp - b.currentHp)[0];
     return { type: 'attack', attackerId: unit.characterId, targetId: target.characterId };
   }
 

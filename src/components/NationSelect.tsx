@@ -4,6 +4,7 @@ import { NATIONS } from '../data/nations';
 import { CHARACTERS } from '../data/characters';
 import { useIsMobile } from '../hooks/useIsMobile';
 import RandomMapSetup from './RandomMapSetup';
+import type { Difficulty } from '../game/types';
 
 const FACTION_ICON: Record<string, string> = {
   '朱雀': '🦅', '青龍': '🐉', '玄武': '🐢', '黄竜': '🌟', '白虎': '🐯',
@@ -44,10 +45,17 @@ function getNationComposition(nationId: string): Record<string, number> {
   return counts;
 }
 
+const DIFFICULTY_CONFIG: { id: Difficulty; label: string; icon: string; color: string; desc: string }[] = [
+  { id: 'easy',   label: 'かんたん', icon: '🌱', color: '#22c55e', desc: 'AI侵攻が少ない / 開始金+150' },
+  { id: 'normal', label: 'ふつう',   icon: '⚔',  color: '#3b82f6', desc: '標準的な難しさ' },
+  { id: 'hard',   label: 'むずかしい', icon: '💀', color: '#ef4444', desc: 'AI積極侵攻 / 開始金−50' },
+];
+
 export default function NationSelect() {
   const { selectNation, openCampaignSelect, openMapEditor } = useGameStore();
   const isMobile = useIsMobile();
   const [showRandomMap, setShowRandomMap] = useState(false);
+  const [difficulty, setDifficulty] = useState<Difficulty>('normal');
   const nations = Object.values(NATIONS);
 
   return (
@@ -111,7 +119,33 @@ export default function NationSelect() {
           <div style={{ fontSize: 11, color: '#8b5cf6' }}>→ 生成</div>
         </button>
       </div>
-      {showRandomMap && <RandomMapSetup onClose={() => setShowRandomMap(false)} />}
+      {showRandomMap && <RandomMapSetup onClose={() => setShowRandomMap(false)} difficulty={difficulty} />}
+
+      {/* 難易度選択 */}
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
+        <span style={{ fontSize: 13, color: '#9ca3af', fontWeight: 'bold' }}>難易度:</span>
+        {DIFFICULTY_CONFIG.map((d) => (
+          <button
+            key={d.id}
+            onClick={() => setDifficulty(d.id)}
+            title={d.desc}
+            style={{
+              padding: '6px 16px',
+              border: `2px solid ${difficulty === d.id ? d.color : '#374151'}`,
+              borderRadius: 20,
+              background: difficulty === d.id ? d.color + '22' : 'transparent',
+              color: difficulty === d.id ? d.color : '#9ca3af',
+              cursor: 'pointer', fontSize: 13, fontWeight: 'bold',
+              display: 'flex', alignItems: 'center', gap: 5,
+            }}
+          >
+            <span>{d.icon}</span>{d.label}
+          </button>
+        ))}
+        <span style={{ fontSize: 11, color: '#6b7280' }}>
+          {DIFFICULTY_CONFIG.find((d) => d.id === difficulty)?.desc}
+        </span>
+      </div>
 
       {/* フリープレイ国家選択 */}
       <div
@@ -126,7 +160,7 @@ export default function NationSelect() {
           return (
             <button
               key={nation.id}
-              onClick={() => selectNation(nation.id)}
+              onClick={() => selectNation(nation.id, difficulty)}
               style={{
                 background: '#1f2937', border: `2px solid ${nation.color}`, borderRadius: 10,
                 padding: '16px 14px', cursor: 'pointer', color: '#f9fafb', textAlign: 'left',

@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { useGameStore } from '../game/store';
 import { generateRandomMap, NATION_ORDER, cellId } from '../data/randomMap';
 import type { RandomMapResult } from '../data/randomMap';
+import type { Difficulty } from '../game/types';
 
 const FACTION_ICON: Record<string, string> = {
   '朱雀': '🦅', '青龍': '🐉', '玄武': '🐢', '黄竜': '🌟', '白虎': '🐯',
@@ -64,9 +65,10 @@ function MiniMap({ data }: { data: RandomMapResult }) {
 // ============================================================
 interface Props {
   onClose: () => void;
+  difficulty?: Difficulty;
 }
 
-export default function RandomMapSetup({ onClose }: Props) {
+export default function RandomMapSetup({ onClose, difficulty = 'normal' }: Props) {
   const { startRandomGame } = useGameStore();
   const [seed, setSeed] = useState(() => Math.floor(Math.random() * 0xffffffff));
   const [mapData, setMapData] = useState<RandomMapResult>(() => generateRandomMap(seed));
@@ -81,7 +83,7 @@ export default function RandomMapSetup({ onClose }: Props) {
 
   const handleStart = () => {
     if (!selectedNation) return;
-    startRandomGame(selectedNation, seed);
+    startRandomGame(selectedNation, seed, difficulty);
     onClose();
   };
 

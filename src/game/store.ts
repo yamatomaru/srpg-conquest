@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { BattleLogEntry, BattleState, CampaignProgress, CampaignScenario, Character, DiplomaticStatus, GameState, Side, UISelection } from './types';
+import type { BattleLogEntry, BattleState, CampaignProgress, CampaignScenario, Character, Difficulty, DiplomaticStatus, GameState, Side, UISelection } from './types';
 import { NATIONS } from '../data/nations';
 import { TERRITORIES } from '../data/territories';
 import { CHARACTERS } from '../data/characters';
@@ -119,6 +119,7 @@ function buildScenarioState(
     recruitOffer: null,
     marchPlans: [],
     playerInventory: {},
+    difficulty: 'normal',
     ui: { ...INITIAL_UI },
     // 実績はロード時に localStorage から引き継ぐ（後で上書き）
     playerStats: defaultStats(),
@@ -154,6 +155,7 @@ const getInitialState = (): GameState => {
     recruitOffer: null,
     marchPlans: [],
     playerInventory: {},
+    difficulty: 'normal',
     campaignProgress: null,
     campaignScenario: null,
     ui: { ...INITIAL_UI },
@@ -165,8 +167,8 @@ const getInitialState = (): GameState => {
 };
 
 interface GameActions {
-  selectNation: (nationId: string) => void;
-  startRandomGame: (nationId: string, seed: number) => void;
+  selectNation: (nationId: string, difficulty?: Difficulty) => void;
+  startRandomGame: (nationId: string, seed: number, difficulty?: Difficulty) => void;
   openCampaignSelect: () => void;
   startCampaign: (campaignId: string, nationId: string) => void;
   loadScenario: (scenarioIndex: number) => void;
@@ -541,31 +543,45 @@ function applyStrategicBattleResult(
 export const useGameStore = create<GameState & GameActions>((set, get) => ({
   ...getInitialState(),
 
-  selectNation: (nationId) =>
+  selectNation: (nationId, difficulty = 'normal') =>
     set((state) => {
+      const goldBonus = difficulty === 'easy' ? 150 : difficulty === 'hard' ? -50 : 0;
+      const aiGoldAdj  = difficulty === 'easy' ? -50 : difficulty === 'hard' ? 50 : 0;
       const newNations = Object.fromEntries(
-        Object.entries(state.nations).map(([k, n]) => [k, { ...n, isPlayer: k === nationId }])
+        Object.entries(state.nations).map(([k, n]) => [k, {
+          ...n,
+          isPlayer: k === nationId,
+          gold: k === nationId ? n.gold + goldBonus : n.gold + aiGoldAdj,
+        }])
       );
       const playerFaction = newNations[nationId].faction;
       return {
         phase: 'strategic' as const,
         currentNationId: nationId,
+        difficulty,
         nations: newNations,
         relations: buildRelations(newNations as typeof NATIONS, nationId),
         mercPool: filterMercPool(pickMercPool(1, playerFaction), state.characters),
       };
     }),
 
-  startRandomGame: (nationId, seed) => {
+  startRandomGame: (nationId, seed, difficulty = 'normal') => {
     const { territories, nations, characters } = generateRandomMap(seed);
+    const goldBonus = difficulty === 'easy' ? 150 : difficulty === 'hard' ? -50 : 0;
+    const aiGoldAdj  = difficulty === 'easy' ? -50 : difficulty === 'hard' ? 50 : 0;
     const newNations = Object.fromEntries(
-      Object.entries(nations).map(([k, n]) => [k, { ...n, isPlayer: k === nationId }])
+      Object.entries(nations).map(([k, n]) => [k, {
+        ...n,
+        isPlayer: k === nationId,
+        gold: k === nationId ? n.gold + goldBonus : n.gold + aiGoldAdj,
+      }])
     );
     const playerFaction = newNations[nationId].faction;
     set({
       phase: 'strategic' as const,
       month: 1,
       currentNationId: nationId,
+      difficulty,
       nations: newNations,
       territories,
       characters,
@@ -2060,7 +2076,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
           characters: workChars,
           winnerId: workWinnerId,
         };
-        const result = resolveAutoBattle(workState, curId, nextId);
+        const result = resolveAutoBattle(workState, curId, nextId, workState.difficulty);
         const patch = applyStrategicBattleResult(workState, curId, nextId, result.winnerSide, result.survivingAttackerIds);
         // patch の最初のログエントリを転用
         if (patch.ui?.log?.[0]) logs.push(patch.ui.log[0]);
@@ -2148,7 +2164,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         return;
       }
 
-      const action = decideAIUnitAction(currentUnit, state.characters, battle);
+      const action = decideAIUnitAction(currentUnit, state.characters, battle, state.difficulty);
 
       if (action.type === 'move') {
         get().moveUnit(action.unitId, action.to);
@@ -2332,10 +2348,10 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
             }
             set({ territories: updTerr });
           }
-          const action = decideAINationAction(player.id, get());
+          const action = decideAINationAction(player.id, get(), get().difficulty);
           if (action.type === 'invade') {
             const freshS = get();
-            const result = resolveAutoBattle(freshS, action.fromId, action.toId);
+            const result = resolveAutoBattle(freshS, action.fromId, action.toId, freshS.difficulty);
             const patch = applyStrategicBattleResult(freshS, action.fromId, action.toId, result.winnerSide, result.survivingAttackerIds);
             set(patch as Partial<GameState & GameActions>);
           }
@@ -2380,7 +2396,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       set({ territories: updatedTerritories });
     }
 
-    const action = decideAINationAction(nationId, get());
+    const action = decideAINationAction(nationId, get(), get().difficulty);
 
     if (action.type === 'invade') {
       const { fromId, toId } = action;
@@ -2402,7 +2418,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         }
         // autoPlay 中は戦術マップを経由せず自動解決
         if (get().autoPlay) {
-          const result = resolveAutoBattle(state, fromId, toId);
+          const result = resolveAutoBattle(state, fromId, toId, state.difficulty);
           const patch = applyStrategicBattleResult(state, fromId, toId, result.winnerSide, result.survivingAttackerIds);
           set(patch as Partial<GameState & GameActions>);
           setTimeout(() => get()._runStrategicAI(nationIds, idx + 1), d(600));
@@ -2416,7 +2432,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         return;
       }
 
-      const result = resolveAutoBattle(state, fromId, toId);
+      const result = resolveAutoBattle(state, fromId, toId, state.difficulty);
       const patch = applyStrategicBattleResult(state, fromId, toId, result.winnerSide, result.survivingAttackerIds);
       set(patch as Partial<GameState & GameActions>);
       setTimeout(() => get()._runStrategicAI(nationIds, idx + 1), d(600));

@@ -298,6 +298,12 @@ export interface EditorMap {
 }
 
 // ============================================================
+// 難易度
+// ============================================================
+
+export type Difficulty = 'easy' | 'normal' | 'hard';
+
+// ============================================================
 // 実績・プレイ統計
 // ============================================================
 
@@ -355,6 +361,8 @@ export interface GameState {
   marchPlans: MarchPlan[];           // 行軍計画リスト
   // アイテム・装備
   playerInventory: Record<string, number>;  // itemId → 所持数
+  // 難易度
+  difficulty: Difficulty;
   // キャンペーン
   campaignProgress: CampaignProgress | null;
   campaignScenario: CampaignScenario | null;
