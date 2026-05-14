@@ -19,6 +19,7 @@ import { INITIAL_OBJECTIVES, checkObjectives } from '../data/objectives';
 import { pickMercPool } from '../data/mercenaries';
 import { ITEMS } from '../data/items';
 import type { ItemSlot } from '../data/items';
+import { generateRandomMap } from '../data/randomMap';
 
 const INITIAL_UI: UISelection = {
   selectedTerritoryId: null,
@@ -154,6 +155,7 @@ const getInitialState = (): GameState => {
 
 interface GameActions {
   selectNation: (nationId: string) => void;
+  startRandomGame: (nationId: string, seed: number) => void;
   openCampaignSelect: () => void;
   startCampaign: (campaignId: string, nationId: string) => void;
   loadScenario: (scenarioIndex: number) => void;
@@ -504,6 +506,39 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         mercPool: filterMercPool(pickMercPool(1, playerFaction), state.characters),
       };
     }),
+
+  startRandomGame: (nationId, seed) => {
+    const { territories, nations, characters } = generateRandomMap(seed);
+    const newNations = Object.fromEntries(
+      Object.entries(nations).map(([k, n]) => [k, { ...n, isPlayer: k === nationId }])
+    );
+    const playerFaction = newNations[nationId].faction;
+    set({
+      phase: 'strategic' as const,
+      month: 1,
+      currentNationId: nationId,
+      nations: newNations,
+      territories,
+      characters,
+      battle: null,
+      winnerId: null,
+      isAIThinking: false,
+      autoPlay: false,
+      fastForward: false,
+      actedCharIds: [],
+      relations: buildRelations(newNations as typeof NATIONS, nationId),
+      objectives: [...INITIAL_OBJECTIVES],
+      mercPool: filterMercPool(pickMercPool(1, playerFaction), characters),
+      mercDurations: {},
+      currentEvent: null,
+      recruitOffer: null,
+      marchPlans: [],
+      playerInventory: {},
+      campaignProgress: null,
+      campaignScenario: null,
+      ui: { ...INITIAL_UI },
+    });
+  },
 
   openCampaignSelect: () => set({ phase: 'campaign_select' as const }),
 
