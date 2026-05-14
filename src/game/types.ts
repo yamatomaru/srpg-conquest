@@ -76,7 +76,7 @@ export interface InvasionPending {
   toTerritoryId: string;
 }
 
-export type ActivePanel = 'none' | 'troops' | 'diplomacy' | 'mercenary' | 'objectives' | 'simulation';
+export type ActivePanel = 'none' | 'troops' | 'diplomacy' | 'mercenary' | 'objectives' | 'simulation' | 'achievements';
 
 export interface UISelection {
   selectedTerritoryId: string | null;
@@ -292,6 +292,30 @@ export interface EditorMap {
 }
 
 // ============================================================
+// 実績・プレイ統計
+// ============================================================
+
+/** ゲームをまたいで累積するプレイ統計 */
+export interface PlayerStats {
+  battlesWon: number;
+  battlesLost: number;
+  unitsDefeated: number;
+  gamesWon: number;
+  fastBattleWins: number;       // 3ターン以内勝利
+  perfectBattleWins: number;    // 全員生存勝利
+  noLossWins: number;           // 1度も負けずにゲームクリア
+  maxLevelReached: number;
+  maxGoldHeld: number;
+  territoriesCaptured: number;
+  mercenariesHired: number;
+  marchPlansCompleted: number;
+  powerAttackKills: number;
+  aoeTripleKills: number;
+  maxMonthSurvived: number;
+  alliancesFormed: number;
+}
+
+// ============================================================
 // ゲーム全体状態
 // ============================================================
 
@@ -327,4 +351,9 @@ export interface GameState {
   campaignProgress: CampaignProgress | null;
   campaignScenario: CampaignScenario | null;
   ui: UISelection;
+  // 実績・統計（localStorage に永続保存）
+  playerStats: PlayerStats;
+  unlockedAchievementIds: string[];
+  pendingAchievementToasts: string[];  // 解除されたが未表示のID
+  currentGameLosses: number;           // 今回のゲームでの敗北回数（no_loss判定用）
 }
