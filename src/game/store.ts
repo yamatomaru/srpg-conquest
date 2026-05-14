@@ -173,8 +173,10 @@ interface GameActions {
   completeCampaignScenario: (success: boolean) => void;
   openMapEditor: () => void;
   reset: () => void;
-  saveGame: () => void;
-  loadGame: () => void;
+  saveGame: (slot?: number) => void;
+  loadGame: (slot?: number) => void;
+  deleteSave: (slot: number) => void;
+  autoSave: () => void;
   selectTerritory: (id: string | null) => void;
   startInvasion: (fromId: string) => void;
   cancelInvasion: () => void;
@@ -660,7 +662,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 
   reset: () => set(getInitialState()),
 
-  saveGame: () => {
+  saveGame: (slot = 0) => {
     const {
       phase, month, currentNationId, nations, territories, characters,
       relations, objectives, mercPool, mercDurations, marchPlans,
@@ -672,17 +674,51 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       winnerId, campaignProgress, campaignScenario, playerInventory,
       ui: { ...ui, invasionMode: null, invasionPending: null, transferMode: null, transferPending: null, marchPlanMode: null, marchPlanPreview: null, gameOverShown: false },
     };
-    localStorage.setItem('srpg-conquest-save', JSON.stringify(data));
-    localStorage.setItem('srpg-conquest-save-ts', Date.now().toString());
+    const key = `srpg-conquest-save-${slot}`;
+    localStorage.setItem(key, JSON.stringify(data));
+    localStorage.setItem(`${key}-ts`, Date.now().toString());
+    // 後方互換: スロット0はデフォルトキーにも書く
+    if (slot === 0) {
+      localStorage.setItem('srpg-conquest-save', JSON.stringify(data));
+      localStorage.setItem('srpg-conquest-save-ts', Date.now().toString());
+    }
   },
 
-  loadGame: () => {
-    const raw = localStorage.getItem('srpg-conquest-save');
+  loadGame: (slot = 0) => {
+    const key = `srpg-conquest-save-${slot}`;
+    const raw = localStorage.getItem(key) ?? (slot === 0 ? localStorage.getItem('srpg-conquest-save') : null);
     if (!raw) return;
     try {
       const data = JSON.parse(raw) as Partial<GameState>;
       set({ ...data, marchPlans: data.marchPlans ?? [], playerInventory: data.playerInventory ?? {}, battle: null, isAIThinking: false, currentEvent: null });
     } catch { /* 壊れたセーブは無視 */ }
+  },
+
+  deleteSave: (slot) => {
+    const key = `srpg-conquest-save-${slot}`;
+    localStorage.removeItem(key);
+    localStorage.removeItem(`${key}-ts`);
+    if (slot === 0) {
+      localStorage.removeItem('srpg-conquest-save');
+      localStorage.removeItem('srpg-conquest-save-ts');
+    }
+  },
+
+  autoSave: () => {
+    const {
+      phase, month, currentNationId, nations, territories, characters,
+      relations, objectives, mercPool, mercDurations, marchPlans,
+      winnerId, campaignProgress, campaignScenario, ui, playerInventory,
+    } = get();
+    if (phase !== 'strategic') return;
+    const data = {
+      phase, month, currentNationId, nations, territories, characters,
+      relations, objectives, mercPool, mercDurations, marchPlans,
+      winnerId, campaignProgress, campaignScenario, playerInventory,
+      ui: { ...ui, invasionMode: null, invasionPending: null, transferMode: null, transferPending: null, marchPlanMode: null, marchPlanPreview: null, gameOverShown: false },
+    };
+    localStorage.setItem('srpg-conquest-save-auto', JSON.stringify(data));
+    localStorage.setItem('srpg-conquest-save-auto-ts', Date.now().toString());
   },
 
   // ── 戦略マップ操作 ──────────────────────────────────
@@ -1069,6 +1105,9 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       setTimeout(() => get().completeCampaignScenario(campaignVictory!), 300);
       return;
     }
+
+    // オートセーブ（毎ターン開始時）
+    setTimeout(() => get().autoSave(), 100);
 
     if (!winnerId) {
       const aiNationIds = Object.values(newNations)

@@ -1,40 +1,21 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { useGameStore } from '../game/store';
 import { useIsMobile } from '../hooks/useIsMobile';
-import { seSave } from '../game/sound';
-
-const SAVE_KEY = 'srpg-conquest-save';
-const SAVE_TS_KEY = 'srpg-conquest-save-ts';
+import SaveSlotPanel from './SaveSlotPanel';
 
 export default function TurnControl() {
   const { month, currentNationId, nations, winnerId, isAIThinking, autoPlay, fastForward, ui,
-    endPlayerTurn, saveGame, loadGame, reset, togglePanel, toggleAutoPlay, toggleFastForward } =
+    endPlayerTurn, reset, togglePanel, toggleAutoPlay, toggleFastForward } =
     useGameStore();
   const isMobile = useIsMobile();
   const currentNation = nations[currentNationId];
   const playerNation = Object.values(nations).find((n) => n.isPlayer)!;
   const isPlayerTurn = currentNationId === playerNation.id;
   const canEndTurn = isPlayerTurn && winnerId === null && !isAIThinking;
-  const hasSave = !!localStorage.getItem(SAVE_KEY);
-  const [saveMsg, setSaveMsg] = useState('');
 
-  const saveTs = localStorage.getItem(SAVE_TS_KEY);
-  const saveDateStr = saveTs
-    ? new Date(Number(saveTs)).toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-    : null;
-
-  const handleSave = useCallback(() => {
-    saveGame();
-    seSave();
-    setSaveMsg('✅ セーブしました');
-    setTimeout(() => setSaveMsg(''), 2000);
-  }, [saveGame]);
-
-  const handleLoad = useCallback(() => {
-    if (window.confirm('セーブデータをロードしますか？現在の進行は失われます。')) {
-      loadGame();
-    }
-  }, [loadGame]);
+  // オートセーブ存在チェック（UI表示用）
+  const hasAutoSave = !!localStorage.getItem('srpg-conquest-save-auto');
+  const [showSavePanel, setShowSavePanel] = useState(false);
 
   const btnStyle = (color: string, enabled = true) => ({
     padding: isMobile ? '6px 10px' : '7px 18px',
@@ -79,9 +60,12 @@ export default function TurnControl() {
           {isAIThinking && (
             <span style={{ color: '#f59e0b' }}>AI中...</span>
           )}
+          {hasAutoSave && !isMobile && (
+            <span style={{ fontSize: 11, color: '#4b5563' }}>💾 AS</span>
+          )}
         </div>
 
-        {/* 右: パネルボタン + セーブ・ロード・リセット・ターン終了 */}
+        {/* 右: パネルボタン + セーブ・リセット・ターン終了 */}
         <div style={{ display: 'flex', gap: isMobile ? 4 : 7, alignItems: 'center', flexWrap: 'wrap' }}>
           <button onClick={() => togglePanel('troops')}
             style={{ ...btnStyle(ui.activePanel === 'troops' ? '#1d4ed8' : '#374151') }}
@@ -108,13 +92,14 @@ export default function TurnControl() {
             style={{ ...btnStyle(ui.activePanel === 'achievements' ? '#92400e' : '#374151') }}
             title="実績">🏆</button>
           {!isMobile && <div style={{ width: 1, background: '#374151', alignSelf: 'stretch', margin: '0 4px' }} />}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-            <button onClick={handleSave} disabled={!canEndTurn} style={btnStyle('#065f46', canEndTurn)} title="セーブ">セーブ</button>
-            {saveMsg
-              ? <span style={{ fontSize: 10, color: '#34d399' }}>{saveMsg}</span>
-              : saveDateStr && <span style={{ fontSize: 10, color: '#6b7280' }}>{saveDateStr}</span>}
-          </div>
-          <button onClick={handleLoad} disabled={!hasSave} style={btnStyle('#1e3a5f', hasSave)} title="ロード">ロード</button>
+          <button
+            onClick={() => setShowSavePanel(true)}
+            style={btnStyle('#065f46', canEndTurn)}
+            disabled={!canEndTurn}
+            title="セーブ / ロード"
+          >
+            💾
+          </button>
           <button onClick={reset} style={btnStyle('#4b5563')} title="リセット">リセット</button>
           {!isMobile && <div style={{ width: 1, background: '#374151', alignSelf: 'stretch', margin: '0 4px' }} />}
           {autoPlay && (
@@ -164,6 +149,8 @@ export default function TurnControl() {
           ))}
         </div>
       )}
+
+      {showSavePanel && <SaveSlotPanel onClose={() => setShowSavePanel(false)} />}
     </div>
   );
 }
