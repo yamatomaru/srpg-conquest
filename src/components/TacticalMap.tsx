@@ -3,7 +3,8 @@ import { useGameStore } from '../game/store';
 import { JOB_ABBR } from '../data/jobs';
 import { TERRAIN_DEFS } from '../game/terrain';
 import { calcReachable } from '../game/tactical/movement';
-import JobIcon from './JobIcon';
+import { calculateDamage } from '../game/tactical/attack';
+import type { TerrainType } from '../game/types';
 
 const CELL = 90;
 const PADDING = 36;
@@ -23,11 +24,46 @@ interface Popup {
 
 let popupCounter = 0;
 
+/** 地形ごとの SVG アイコン（セル内部に重ねて描画） */
+function TerrainIcon({ type, cx, cy }: { type: TerrainType; cx: number; cy: number }) {
+  switch (type) {
+    case 'forest':
+      return (
+        <g opacity={0.55} pointerEvents="none">
+          <polygon points={`${cx-22},${cy+12} ${cx-13},${cy-6} ${cx-4},${cy+12}`} fill="#4ade80" />
+          <rect x={cx-17} y={cy+11} width={4} height={7} fill="#92400e" />
+          <polygon points={`${cx+4},${cy+12} ${cx+15},${cy-8} ${cx+26},${cy+12}`} fill="#22c55e" />
+          <rect x={cx+13} y={cy+11} width={4} height={7} fill="#92400e" />
+        </g>
+      );
+    case 'mountain':
+      return (
+        <g opacity={0.45} pointerEvents="none">
+          <polygon points={`${cx+6},${cy-18} ${cx+28},${cy+14} ${cx-16},${cy+14}`} fill="#6b7280" />
+          <polygon points={`${cx-8},${cy-14} ${cx+20},${cy+14} ${cx-28},${cy+14}`} fill="#9ca3af" />
+          <polygon points={`${cx-8},${cy-14} ${cx},${cy-5} ${cx-16},${cy-5}`} fill="#f9fafb" />
+        </g>
+      );
+    case 'fortress':
+      return (
+        <g opacity={0.65} pointerEvents="none">
+          <rect x={cx-14} y={cy-6} width={28} height={22} fill="#92400e" />
+          <rect x={cx-14} y={cy-18} width={7} height={13} fill="#92400e" />
+          <rect x={cx-4}  y={cy-18} width={7} height={13} fill="#92400e" />
+          <rect x={cx+7}  y={cy-18} width={7} height={13} fill="#92400e" />
+          <rect x={cx-5} y={cy+4} width={10} height={12} fill="#111827" rx={3} />
+          <rect x={cx-3} y={cy-4} width={6} height={7} fill="#111827" />
+        </g>
+      );
+    default:
+      return null;
+  }
+}
+
 export default function TacticalMap() {
   const { battle, characters, nations, isAIThinking, selectUnit, moveUnit, attackUnit, moveAndAttack, executeSkill, endBattle } = useGameStore();
   const [popups, setPopups] = useState<Popup[]>([]);
-  // スプライトエラー追跡: charId → 'char_failed' | 'job_failed'
-  const [spriteErrors, setSpriteErrors] = useState<Record<string, 'char_failed' | 'job_failed'>>({});
+  const [hoveredCell, setHoveredCell] = useState<{ x: number; y: number } | null>(null);
   const prevLogRef = useRef(battle?.recentLog[0] ?? null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
@@ -152,11 +188,14 @@ export default function TacticalMap() {
         <svg width={SVG_W} height={SVG_H} style={{ display: 'block' }}>
           <g transform={`translate(${PADDING}, ${PADDING})`}>
 
-            {/* グリッド背景（地形カラー） */}
+            {/* グリッド背景（地形カラー + アイコン） */}
             {Array.from({ length: map.height }, (_, row) =>
               Array.from({ length: map.width }, (_, col) => {
                 const terrainType = map.terrain?.[row]?.[col] ?? 'plain';
                 const terrainColor = TERRAIN_DEFS[terrainType].color;
+                const cx = col * CELL + CELL / 2;
+                const cy = row * CELL + CELL / 2;
+                const isHovered = hoveredCell?.x === col && hoveredCell?.y === row;
                 return (
                   <g key={`bg-${col}-${row}`}>
                     <rect
@@ -164,11 +203,22 @@ export default function TacticalMap() {
                       width={CELL} height={CELL}
                       fill={terrainColor} stroke="#374151" strokeWidth={1}
                     />
+                    <TerrainIcon type={terrainType} cx={cx} cy={cy} />
+                    {/* 地形ラベル（小） */}
                     {terrainType !== 'plain' && (
-                      <text x={col * CELL + CELL / 2} y={row * CELL + CELL - 6}
-                        textAnchor="middle" fill="#ffffff" fillOpacity={0.5} fontSize={11}>
+                      <text x={col * CELL + 5} y={row * CELL + 14}
+                        fill="#ffffff" fillOpacity={0.45} fontSize={10}>
                         {TERRAIN_DEFS[terrainType].label}
                       </text>
+                    )}
+                    {/* ホバーハイライト */}
+                    {isHovered && (
+                      <rect
+                        x={col * CELL} y={row * CELL}
+                        width={CELL} height={CELL}
+                        fill="rgba(255,255,255,0.08)"
+                        stroke="rgba(255,255,255,0.3)" strokeWidth={1.5}
+                      />
                     )}
                   </g>
                 );
@@ -366,7 +416,7 @@ export default function TacticalMap() {
           );
         })}
 
-        {/* クリックグリッド */}
+        {/* クリックグリッド（ホバー検出込み） */}
         {!isAIThinking && (
           <div
             style={{
@@ -377,6 +427,7 @@ export default function TacticalMap() {
               gridTemplateRows: `repeat(${map.height}, ${CELL}px)`,
               width: W, height: H,
             }}
+            onMouseLeave={() => setHoveredCell(null)}
           >
             {Array.from({ length: map.height }, (_, row) =>
               Array.from({ length: map.width }, (_, col) => (
@@ -384,11 +435,74 @@ export default function TacticalMap() {
                   key={`${col}-${row}`}
                   style={{ cursor: 'pointer' }}
                   onClick={() => handleCellClick(col, row)}
+                  onMouseEnter={() => setHoveredCell({ x: col, y: row })}
                 />
               )),
             )}
           </div>
         )}
+
+        {/* ホバーツールチップ */}
+        {hoveredCell && (() => {
+          const { x, y } = hoveredCell;
+          const terrainType = map.terrain?.[y]?.[x] ?? 'plain';
+          const def = TERRAIN_DEFS[terrainType];
+
+          // 攻撃プレビュー計算
+          const hoveredUnit = unitAtPos.get(`${x},${y}`);
+          const activeUnit = units.find((u) => u.characterId === currentActiveId);
+          const activeChar = activeUnit ? characters[activeUnit.characterId] : null;
+
+          let atkPreviewText: string | null = null;
+          if (
+            hoveredUnit && activeUnit && activeChar &&
+            hoveredUnit.side !== activeUnit.side &&
+            (attackTargetSet.has(hoveredUnit.characterId) || quickAttackTargetSet.has(hoveredUnit.characterId))
+          ) {
+            const defChar = characters[hoveredUnit.characterId];
+            const isPower = battle!.powerAttackIds.includes(activeUnit.characterId);
+            const dmgWith    = calculateDamage(activeChar, defChar, terrainType, isPower);
+            const dmgWithout = calculateDamage(activeChar, defChar, undefined,   isPower);
+            const reduction = dmgWithout - dmgWith;
+            atkPreviewText = reduction > 0
+              ? `ダメージ予測: ${dmgWith} (地形補正 -${reduction})`
+              : `ダメージ予測: ${dmgWith}`;
+          }
+
+          const tipX = (PADDING + x * CELL + (x < map.width - 2 ? CELL + 4 : -140)) * scale;
+          const tipY = (PADDING + y * CELL) * scale;
+
+          return (
+            <div style={{
+              position: 'absolute',
+              left: tipX, top: tipY,
+              background: 'rgba(15,23,42,0.95)',
+              border: '1px solid #374151',
+              borderRadius: 6,
+              padding: '7px 10px',
+              fontSize: 12,
+              color: '#e5e7eb',
+              pointerEvents: 'none',
+              zIndex: 50,
+              minWidth: 130,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.6)',
+            }}>
+              <div style={{ fontWeight: 'bold', marginBottom: 4, color: '#fbbf24' }}>
+                {def.label}
+              </div>
+              <div style={{ color: '#9ca3af', lineHeight: 1.7 }}>
+                <div>移動コスト: <span style={{ color: def.movCost > 1 ? '#f97316' : '#9ca3af' }}>{def.movCost}</span></div>
+                {def.defBonus > 0 && <div>DEF補正: <span style={{ color: '#60a5fa' }}>+{def.defBonus}</span></div>}
+                {def.mdefBonus > 0 && <div>MDEF補正: <span style={{ color: '#c084fc' }}>+{def.mdefBonus}</span></div>}
+              </div>
+              {atkPreviewText && (
+                <div style={{ marginTop: 6, paddingTop: 5, borderTop: '1px solid #374151', color: '#fca5a5', fontWeight: 'bold' }}>
+                  {atkPreviewText}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* ダメージポップアップ */}
         {popups.map((popup) => (
