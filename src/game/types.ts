@@ -37,6 +37,10 @@ export interface Character {
   mov: number;
   range: number;
   spritePath?: string;
+  // 装備スロット
+  equippedWeaponId?: string;
+  equippedArmorId?: string;
+  equippedAccessoryId?: string;
 }
 
 // ============================================================
@@ -76,7 +80,7 @@ export interface InvasionPending {
   toTerritoryId: string;
 }
 
-export type ActivePanel = 'none' | 'troops' | 'diplomacy' | 'mercenary' | 'objectives' | 'simulation' | 'achievements';
+export type ActivePanel = 'none' | 'troops' | 'diplomacy' | 'mercenary' | 'objectives' | 'simulation' | 'shop';
 
 export interface UISelection {
   selectedTerritoryId: string | null;
@@ -349,6 +353,8 @@ export interface GameState {
   currentEvent: GameEvent | null;  // 今月のランダムイベント（表示後null）
   recruitOffer: RecruitOffer | null; // 敗北国から兵士を勧誘するオファー
   marchPlans: MarchPlan[];           // 行軍計画リスト
+  // アイテム・装備
+  playerInventory: Record<string, number>;  // itemId → 所持数
   // キャンペーン
   campaignProgress: CampaignProgress | null;
   campaignScenario: CampaignScenario | null;

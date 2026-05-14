@@ -17,7 +17,8 @@ import { generateRandomEvent } from '../data/events';
 import { seAttack, seDefeat, seLevelUp, seVictory, seDefeat2, seSkill, seInvade } from './sound';
 import { INITIAL_OBJECTIVES, checkObjectives } from '../data/objectives';
 import { pickMercPool } from '../data/mercenaries';
-import { checkNewAchievements, loadAchievements, saveAchievements, defaultStats } from '../data/achievements';
+import { ITEMS } from '../data/items';
+import type { ItemSlot } from '../data/items';
 
 const INITIAL_UI: UISelection = {
   selectedTerritoryId: null,
@@ -115,6 +116,7 @@ function buildScenarioState(
     currentEvent: null,
     recruitOffer: null,
     marchPlans: [],
+    playerInventory: {},
     ui: { ...INITIAL_UI },
     // 実績はロード時に localStorage から引き継ぐ（後で上書き）
     playerStats: defaultStats(),
@@ -149,6 +151,7 @@ const getInitialState = (): GameState => {
     currentEvent: null,
     recruitOffer: null,
     marchPlans: [],
+    playerInventory: {},
     campaignProgress: null,
     campaignScenario: null,
     ui: { ...INITIAL_UI },
@@ -196,6 +199,11 @@ interface GameActions {
   declareWar: (nationId: string) => void;
   // 傭兵
   hireMercenary: (mercId: string) => void;
+  // アイテム・装備
+  buyItem: (itemId: string) => void;
+  sellItem: (itemId: string) => void;
+  equipItem: (charId: string, itemId: string) => void;
+  unequipItem: (charId: string, slot: ItemSlot) => void;
   // 勧誘（敗北国兵士を仲間に）
   acceptRecruit: (charId: string) => void;
   dismissRecruit: () => void;
@@ -620,12 +628,12 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     const {
       phase, month, currentNationId, nations, territories, characters,
       relations, objectives, mercPool, mercDurations, marchPlans,
-      winnerId, campaignProgress, campaignScenario, ui,
+      winnerId, campaignProgress, campaignScenario, ui, playerInventory,
     } = get();
     const data = {
       phase, month, currentNationId, nations, territories, characters,
       relations, objectives, mercPool, mercDurations, marchPlans,
-      winnerId, campaignProgress, campaignScenario,
+      winnerId, campaignProgress, campaignScenario, playerInventory,
       ui: { ...ui, invasionMode: null, invasionPending: null, transferMode: null, transferPending: null, marchPlanMode: null, marchPlanPreview: null, gameOverShown: false },
     };
     localStorage.setItem('srpg-conquest-save', JSON.stringify(data));
@@ -637,7 +645,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     if (!raw) return;
     try {
       const data = JSON.parse(raw) as Partial<GameState>;
-      set({ ...data, marchPlans: data.marchPlans ?? [], battle: null, isAIThinking: false, currentEvent: null });
+      set({ ...data, marchPlans: data.marchPlans ?? [], playerInventory: data.playerInventory ?? {}, battle: null, isAIThinking: false, currentEvent: null });
     } catch { /* 壊れたセーブは無視 */ }
   },
 
@@ -1672,6 +1680,137 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         unlockedAchievementIds: newUnlockedMerc,
         pendingAchievementToasts: newToastsMerc,
         ui: { ...state.ui, log: [`💰 傭兵 ${merc.name} を雇用（残4ヶ月）`, ...state.ui.log].slice(0, 10) },
+      };
+    }),
+
+  // ── アイテム・装備 ────────────────────────────────
+
+  buyItem: (itemId) =>
+    set((state) => {
+      const item = ITEMS[itemId];
+      if (!item) return state;
+      const player = Object.values(state.nations).find((n) => n.isPlayer);
+      if (!player || player.gold < item.cost) return state;
+      return {
+        nations: { ...state.nations, [player.id]: { ...player, gold: player.gold - item.cost } },
+        playerInventory: { ...state.playerInventory, [itemId]: (state.playerInventory[itemId] ?? 0) + 1 },
+        ui: { ...state.ui, log: [`🛒 ${item.name} を購入（¥${item.cost}）`, ...state.ui.log].slice(0, 10) },
+      };
+    }),
+
+  sellItem: (itemId) =>
+    set((state) => {
+      const item = ITEMS[itemId];
+      if (!item) return state;
+      const count = state.playerInventory[itemId] ?? 0;
+      if (count <= 0) return state;
+      const player = Object.values(state.nations).find((n) => n.isPlayer);
+      if (!player) return state;
+      const newCount = count - 1;
+      const newInventory = { ...state.playerInventory };
+      if (newCount <= 0) delete newInventory[itemId]; else newInventory[itemId] = newCount;
+      return {
+        nations: { ...state.nations, [player.id]: { ...player, gold: player.gold + item.sellPrice } },
+        playerInventory: newInventory,
+        ui: { ...state.ui, log: [`💴 ${item.name} を売却（+¥${item.sellPrice}）`, ...state.ui.log].slice(0, 10) },
+      };
+    }),
+
+  equipItem: (charId, itemId) =>
+    set((state) => {
+      const item = ITEMS[itemId];
+      if (!item) return state;
+      const count = state.playerInventory[itemId] ?? 0;
+      if (count <= 0) return state;
+      const ch = state.characters[charId];
+      if (!ch) return state;
+
+      const slot = item.slot;
+      const oldItemId =
+        slot === 'weapon' ? ch.equippedWeaponId :
+        slot === 'armor'  ? ch.equippedArmorId  :
+                            ch.equippedAccessoryId;
+
+      // 旧装備のボーナスを除去してインベントリに戻す
+      let newCh = { ...ch };
+      const newInventory = { ...state.playerInventory };
+      if (oldItemId) {
+        const old = ITEMS[oldItemId];
+        if (old) {
+          if (old.bonus.atk)   newCh.atk   -= old.bonus.atk;
+          if (old.bonus.def)   newCh.def   -= old.bonus.def;
+          if (old.bonus.matk)  newCh.matk  -= old.bonus.matk;
+          if (old.bonus.mdef)  newCh.mdef  -= old.bonus.mdef;
+          if (old.bonus.mov)   newCh.mov   -= old.bonus.mov;
+          if (old.bonus.range) newCh.range -= old.bonus.range;
+          if (old.bonus.maxHp) {
+            newCh.maxHp -= old.bonus.maxHp;
+            newCh.hp = Math.min(newCh.hp, newCh.maxHp);
+          }
+          newInventory[oldItemId] = (newInventory[oldItemId] ?? 0) + 1;
+        }
+      }
+
+      // 新装備のボーナスを適用
+      if (item.bonus.atk)   newCh.atk   += item.bonus.atk;
+      if (item.bonus.def)   newCh.def   += item.bonus.def;
+      if (item.bonus.matk)  newCh.matk  += item.bonus.matk;
+      if (item.bonus.mdef)  newCh.mdef  += item.bonus.mdef;
+      if (item.bonus.mov)   newCh.mov   += item.bonus.mov;
+      if (item.bonus.range) newCh.range += item.bonus.range;
+      if (item.bonus.maxHp) {
+        newCh.maxHp += item.bonus.maxHp;
+        newCh.hp    += item.bonus.maxHp;
+      }
+
+      // スロットIDを更新
+      if (slot === 'weapon')    newCh.equippedWeaponId    = itemId;
+      if (slot === 'armor')     newCh.equippedArmorId     = itemId;
+      if (slot === 'accessory') newCh.equippedAccessoryId = itemId;
+
+      // インベントリから1個消費
+      const newCount = count - 1;
+      if (newCount <= 0) delete newInventory[itemId]; else newInventory[itemId] = newCount;
+
+      return {
+        characters: { ...state.characters, [charId]: newCh },
+        playerInventory: newInventory,
+        ui: { ...state.ui, log: [`⚔ ${ch.name} に ${item.name} を装備`, ...state.ui.log].slice(0, 10) },
+      };
+    }),
+
+  unequipItem: (charId, slot) =>
+    set((state) => {
+      const ch = state.characters[charId];
+      if (!ch) return state;
+      const itemId =
+        slot === 'weapon' ? ch.equippedWeaponId :
+        slot === 'armor'  ? ch.equippedArmorId  :
+                            ch.equippedAccessoryId;
+      if (!itemId) return state;
+      const item = ITEMS[itemId];
+      if (!item) return state;
+
+      let newCh = { ...ch };
+      if (item.bonus.atk)   newCh.atk   -= item.bonus.atk;
+      if (item.bonus.def)   newCh.def   -= item.bonus.def;
+      if (item.bonus.matk)  newCh.matk  -= item.bonus.matk;
+      if (item.bonus.mdef)  newCh.mdef  -= item.bonus.mdef;
+      if (item.bonus.mov)   newCh.mov   -= item.bonus.mov;
+      if (item.bonus.range) newCh.range -= item.bonus.range;
+      if (item.bonus.maxHp) {
+        newCh.maxHp -= item.bonus.maxHp;
+        newCh.hp = Math.min(newCh.hp, newCh.maxHp);
+      }
+
+      if (slot === 'weapon')    newCh.equippedWeaponId    = undefined;
+      if (slot === 'armor')     newCh.equippedArmorId     = undefined;
+      if (slot === 'accessory') newCh.equippedAccessoryId = undefined;
+
+      return {
+        characters: { ...state.characters, [charId]: newCh },
+        playerInventory: { ...state.playerInventory, [itemId]: (state.playerInventory[itemId] ?? 0) + 1 },
+        ui: { ...state.ui, log: [`↩ ${ch.name} の ${item.name} を外した`, ...state.ui.log].slice(0, 10) },
       };
     }),
 
