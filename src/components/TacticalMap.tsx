@@ -3,6 +3,7 @@ import { useGameStore } from '../game/store';
 import { JOB_ABBR } from '../data/jobs';
 import { TERRAIN_DEFS } from '../game/terrain';
 import { calcReachable } from '../game/tactical/movement';
+import JobIcon from './JobIcon';
 
 const CELL = 90;
 const PADDING = 36;
@@ -25,6 +26,8 @@ let popupCounter = 0;
 export default function TacticalMap() {
   const { battle, characters, nations, isAIThinking, selectUnit, moveUnit, attackUnit, moveAndAttack, executeSkill, endBattle } = useGameStore();
   const [popups, setPopups] = useState<Popup[]>([]);
+  // スプライトエラー追跡: charId → 'char_failed' | 'job_failed'
+  const [spriteErrors, setSpriteErrors] = useState<Record<string, 'char_failed' | 'job_failed'>>({});
   const prevLogRef = useRef(battle?.recentLog[0] ?? null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
@@ -231,35 +234,47 @@ export default function TacticalMap() {
               const hpRatio = unit.currentHp / ch.maxHp;
               const isSelected = unit.characterId === selectedUnitId;
               const isActive = unit.characterId === currentActiveId;
+              // スプライト表示状態: 画像なし or エラー済みなら SVGアイコン表示
+              const spriteErr = spriteErrors[unit.characterId];
+              const showSprite = ch.spritePath && spriteErr !== 'job_failed';
 
               return (
                 <g key={unit.characterId} style={{ opacity: unit.hasActed ? 0.45 : 1 }}>
+                  {/* アクティブユニットのアニメーションリング */}
                   {isActive && !unit.hasActed && (
                     <circle cx={cx} cy={cy} r={42} fill="none" stroke="#facc15" strokeWidth={3} strokeDasharray="9 4" />
                   )}
+                  {/* 選択リング */}
                   {isSelected && (
                     <circle cx={cx} cy={cy} r={40} fill="none" stroke="#ffffff" strokeWidth={3} />
                   )}
+                  {/* 影 */}
+                  <circle cx={cx + 2} cy={cy + 3} r={33} fill="rgba(0,0,0,0.35)" />
+                  {/* 本体サークル */}
                   <circle cx={cx} cy={cy} r={33} fill={color} />
-                  {!ch.spritePath && (
-                    <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle"
-                      fill="#fff" fontSize={24} fontWeight="bold">
-                      {JOB_ABBR[ch.jobId] ?? '?'}
-                    </text>
+                  {/* スプライトなし → SVGアイコン */}
+                  {!showSprite && (
+                    <foreignObject x={cx - 22} y={cy - 26} width={44} height={44}>
+                      <JobIcon jobId={ch.jobId} size={44} color="#fff" />
+                    </foreignObject>
                   )}
+                  {/* 国色リング */}
                   <circle cx={cx} cy={cy} r={33} fill="none" stroke={color} strokeWidth={2.5} opacity={0.9} />
+                  {/* HP バー背景 */}
                   <rect x={cx - 27} y={cy + 21} width={54} height={7} fill="#1f2937" rx={3} />
+                  {/* HP バー */}
                   <rect
                     x={cx - 27} y={cy + 21}
                     width={54 * hpRatio} height={7}
                     fill={hpRatio > 0.5 ? '#22c55e' : hpRatio > 0.25 ? '#f59e0b' : '#ef4444'}
                     rx={3}
                   />
+                  {/* HP 数値 */}
                   <text x={cx} y={cy + 15} textAnchor="middle" fill="#e5e7eb" fontSize={13}>
                     {unit.currentHp}
                   </text>
-                  {/* ジョブ略称 */}
-                  <text x={cx} y={cy + 30} textAnchor="middle" fill="#cbd5e1" fontSize={15} fontWeight="bold">
+                  {/* ジョブ略称バッジ（スプライット有りの場合も小さく表示） */}
+                  <text x={cx} y={cy + 30} textAnchor="middle" fill="#cbd5e1" fontSize={14} fontWeight="bold">
                     {JOB_ABBR[ch.jobId] ?? '?'}
                   </text>
                   {/* 渾身撃マーク */}
@@ -282,16 +297,22 @@ export default function TacticalMap() {
           </g>
         </svg>
 
-        {/* スプライトオーバーレイ */}
+        {/* スプライトオーバーレイ（3段フォールバック: キャラ → ジョブ → SVGアイコン） */}
         {units.map((unit) => {
           const ch = characters[unit.characterId];
           if (!ch.spritePath) return null;
+          const err = spriteErrors[unit.characterId];
+          if (err === 'job_failed') return null; // SVGアイコンにフォールバック済み
           const left = PADDING + unit.position.x * CELL + CELL / 2 - 33;
           const top  = PADDING + unit.position.y * CELL + CELL / 2 - 33;
+          // 段階的フォールバック: キャラPNG → ジョブPNG → SVGアイコン
+          const src = err === 'char_failed'
+            ? `/sprites/${ch.jobId}.png`
+            : ch.spritePath;
           return (
             <img
               key={`sprite-${unit.characterId}`}
-              src={ch.spritePath}
+              src={src}
               width={66} height={66}
               style={{
                 position: 'absolute', left, top,
@@ -299,6 +320,14 @@ export default function TacticalMap() {
                 imageRendering: 'pixelated',
                 pointerEvents: 'none',
                 opacity: unit.hasActed ? 0.45 : 1,
+              }}
+              onError={() => {
+                setSpriteErrors((prev) => {
+                  const cur = prev[unit.characterId];
+                  if (!cur) return { ...prev, [unit.characterId]: 'char_failed' };
+                  if (cur === 'char_failed') return { ...prev, [unit.characterId]: 'job_failed' };
+                  return prev;
+                });
               }}
             />
           );

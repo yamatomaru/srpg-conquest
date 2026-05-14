@@ -1,10 +1,33 @@
+import { useState } from 'react';
 import { useGameStore } from '../game/store';
 import { JOBS } from '../data/jobs';
+import JobIcon from './JobIcon';
+import type { JobId } from '../game/types';
 
 const JOB_COLOR: Record<string, string> = {
   shielder: '#6b7280', warrior: '#ef4444', spearman: '#f59e0b',
   archer: '#22c55e', mage: '#a855f7',
 };
+
+/** キャラスプライトのミニサムネイル（エラー時はSVGアイコン） */
+function CharSprite({ charId, jobId, spritePath, size = 36 }: {
+  charId: string; jobId: JobId; spritePath?: string; size?: number;
+}) {
+  const [err, setErr] = useState<'char_failed' | 'job_failed' | null>(null);
+  if (!spritePath || err === 'job_failed') {
+    return <JobIcon jobId={jobId} size={size} color={JOB_COLOR[jobId]} />;
+  }
+  const src = err === 'char_failed' ? `/sprites/${jobId}.png` : spritePath;
+  return (
+    <img
+      src={src}
+      width={size} height={size}
+      style={{ borderRadius: '50%', imageRendering: 'pixelated', display: 'block', flexShrink: 0 }}
+      onError={() => setErr((e) => e === null ? 'char_failed' : 'job_failed')}
+      alt={charId}
+    />
+  );
+}
 
 export default function TerritoryDetail() {
   const {
@@ -144,21 +167,33 @@ export default function TerritoryDetail() {
                   style={{
                     background: '#111827', border: '1px solid #374151',
                     borderRadius: 6, padding: '7px 9px', opacity: isDead ? 0.55 : 1,
+                    display: 'flex', gap: 8, alignItems: 'flex-start',
                   }}
                 >
-                  {/* 名前行 */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <span style={{ width: 18, height: 18, borderRadius: 3, background: JOB_COLOR[ch.jobId], display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#fff', fontWeight: 'bold', flexShrink: 0 }}>
-                        {job.name[0]}
-                      </span>
-                      <span style={{ color: isDead ? '#9ca3af' : '#e5e7eb', fontWeight: 'bold', fontSize: 12 }}>{ch.name}</span>
-                      <span style={{ color: '#fbbf24', fontSize: 11 }}>Lv.{ch.level}</span>
-                    </div>
-                    <span style={{ color: isDead ? '#ef4444' : '#d1d5db', fontSize: 11 }}>
-                      {isDead ? '回復中' : `${ch.hp}/${ch.maxHp}`}
-                    </span>
+                  {/* スプライトサムネイル */}
+                  <div style={{
+                    width: 40, height: 40, flexShrink: 0,
+                    borderRadius: '50%', overflow: 'hidden',
+                    background: JOB_COLOR[ch.jobId] + '33',
+                    border: `2px solid ${JOB_COLOR[ch.jobId]}`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <CharSprite charId={cId} jobId={ch.jobId} spritePath={ch.spritePath} size={36} />
                   </div>
+
+                  {/* 右側: 情報 */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    {/* 名前行 */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+                        <span style={{ color: isDead ? '#9ca3af' : '#e5e7eb', fontWeight: 'bold', fontSize: 12 }}>{ch.name}</span>
+                        <span style={{ color: '#fbbf24', fontSize: 10 }}>Lv.{ch.level}</span>
+                        <span style={{ fontSize: 10, color: JOB_COLOR[ch.jobId], fontWeight: 'bold' }}>{job.name}</span>
+                      </div>
+                      <span style={{ color: isDead ? '#ef4444' : '#d1d5db', fontSize: 11, flexShrink: 0 }}>
+                        {isDead ? '回復中' : `${ch.hp}/${ch.maxHp}`}
+                      </span>
+                    </div>
 
                   {/* HP バー */}
                   <div style={{ background: '#374151', borderRadius: 2, height: 4, overflow: 'hidden', marginBottom: 3 }}>
@@ -189,6 +224,7 @@ export default function TerritoryDetail() {
 
                   {/* スキル名 */}
                   <div style={{ marginTop: 4, fontSize: 10, color: '#a855f7' }}>✦ {job.skillName}</div>
+                  </div>{/* right 情報 div 閉じ */}
                 </div>
               );
             })}
