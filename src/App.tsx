@@ -59,6 +59,7 @@ export default function App() {
         <TacticalControl />
         <InitiativeBar />
         <TacticalMap />
+        <TerrainLegend />
         <BattleLog />
       </div>
     );
