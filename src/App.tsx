@@ -8,6 +8,7 @@ import CampaignDebrief from './components/CampaignDebrief';
 import MapEditor from './components/MapEditor';
 import StrategicMap from './components/StrategicMap';
 import TerritoryDetail from './components/TerritoryDetail';
+import MarchPlanPanel from './components/MarchPlanPanel';
 import TurnControl from './components/TurnControl';
 import GameOverModal from './components/GameOverModal';
 import TacticalControl from './components/TacticalControl';
@@ -85,6 +86,7 @@ export default function App() {
           {isMobile && (
             <div style={{ borderTop: '1px solid #374151' }}>
               <TerritoryDetail />
+              <MarchPlanPanel />
             </div>
           )}
         </div>
@@ -93,6 +95,7 @@ export default function App() {
         {!isMobile && (
           <div style={{ width: 270, borderLeft: '1px solid #374151', overflowY: 'auto', flexShrink: 0 }}>
             <TerritoryDetail />
+            <MarchPlanPanel />
           </div>
         )}
       </div>

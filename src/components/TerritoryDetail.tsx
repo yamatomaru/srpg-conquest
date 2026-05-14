@@ -10,8 +10,9 @@ export default function TerritoryDetail() {
   const {
     territories, nations, characters, actedCharIds, ui,
     selectTerritory, startInvasion, cancelInvasion, startTransfer, cancelTransfer,
+    startMarchPlan, cancelMarchPlanMode,
   } = useGameStore();
-  const { selectedTerritoryId, invasionMode, transferMode } = ui;
+  const { selectedTerritoryId, invasionMode, transferMode, marchPlanMode } = ui;
 
   if (!selectedTerritoryId) {
     return (
@@ -27,6 +28,7 @@ export default function TerritoryDetail() {
   const isPlayerOwned = territory.ownerId === playerNation.id;
   const isInvasionSource = invasionMode?.fromTerritoryId === selectedTerritoryId;
   const isTransferSource = transferMode?.fromTerritoryId === selectedTerritoryId;
+  const isMarchPlanSource = marchPlanMode?.fromTerritoryId === selectedTerritoryId;
 
   const hasAdjacentEnemy = territory.adjacentTo.some((adjId) => {
     const adj = territories[adjId];
@@ -80,6 +82,18 @@ export default function TerritoryDetail() {
           >
             移動キャンセル
           </button>
+        ) : isMarchPlanSource ? (
+          <>
+            <div style={{ fontSize: 12, color: '#a855f7', marginBottom: 4 }}>
+              📋 目標の敵領地をクリックしてください
+            </div>
+            <button
+              onClick={() => cancelMarchPlanMode()}
+              style={{ padding: '10px 12px', background: '#4b5563', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 14, fontWeight: 'bold' }}
+            >
+              計画キャンセル
+            </button>
+          </>
         ) : (
           <>
             {canInvade && (
@@ -96,6 +110,14 @@ export default function TerritoryDetail() {
                 style={{ padding: '10px 12px', background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 14, fontWeight: 'bold' }}
               >
                 兵力移動
+              </button>
+            )}
+            {isPlayerOwned && territory.garrisonIds.length > 0 && (
+              <button
+                onClick={() => startMarchPlan(selectedTerritoryId)}
+                style={{ padding: '10px 12px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 14, fontWeight: 'bold' }}
+              >
+                📋 行軍計画
               </button>
             )}
           </>

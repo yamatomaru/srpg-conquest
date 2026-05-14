@@ -84,9 +84,26 @@ export interface UISelection {
   invasionPending: InvasionPending | null;
   transferMode: { fromTerritoryId: string } | null;
   transferPending: { fromTerritoryId: string; toTerritoryId: string } | null;
+  marchPlanMode: { fromTerritoryId: string } | null;
+  marchPlanPreview: { fromId: string; toId: string; path: string[] } | null;
   gameOverShown: boolean;
   log: string[];
   activePanel: ActivePanel;
+}
+
+// ============================================================
+// 行軍計画
+// ============================================================
+
+export interface MarchPlan {
+  id: string;
+  path: string[];          // [fromId, ...中継地, targetId]
+  currentIndex: number;    // 現在兵力がいる path のインデックス
+  targetOwnerId: string;   // 計画作成時点のターゲット所有国ID（変化検知用）
+  label: string;           // 表示名 "A → B"
+  createdMonth: number;
+  status: 'active' | 'done' | 'cancelled';
+  cancelReason?: string;
 }
 
 // ============================================================
@@ -305,6 +322,7 @@ export interface GameState {
   mercDurations: Record<string, number>; // charId → 残り月数（0=雇用期間終了）
   currentEvent: GameEvent | null;  // 今月のランダムイベント（表示後null）
   recruitOffer: RecruitOffer | null; // 敗北国から兵士を勧誘するオファー
+  marchPlans: MarchPlan[];           // 行軍計画リスト
   // キャンペーン
   campaignProgress: CampaignProgress | null;
   campaignScenario: CampaignScenario | null;

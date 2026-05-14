@@ -11,6 +11,7 @@ import { calculateDamage, canAttack, getAttackTargets } from './tactical/attack'
 import { decideAIUnitAction } from './tactical/ai';
 import { decideAINationAction, decideAITransfers } from './strategic/ai';
 import { resolveAutoBattle } from './strategic/autoBattle';
+import { findMarchPath } from './strategic/pathfinding';
 import { generateTerrain } from './terrain';
 import { generateRandomEvent } from '../data/events';
 import { seAttack, seDefeat, seLevelUp, seVictory, seDefeat2, seSkill, seInvade } from './sound';
@@ -23,6 +24,8 @@ const INITIAL_UI: UISelection = {
   invasionPending: null,
   transferMode: null,
   transferPending: null,
+  marchPlanMode: null,
+  marchPlanPreview: null,
   gameOverShown: false,
   log: [],
   activePanel: 'none',
@@ -110,6 +113,7 @@ function buildScenarioState(
     mercDurations: {},
     currentEvent: null,
     recruitOffer: null,
+    marchPlans: [],
     ui: { ...INITIAL_UI },
   };
 }
@@ -137,6 +141,7 @@ const getInitialState = (): GameState => {
     mercDurations: {},
     currentEvent: null,
     recruitOffer: null,
+    marchPlans: [],
     campaignProgress: null,
     campaignScenario: null,
     ui: { ...INITIAL_UI },
@@ -191,6 +196,13 @@ interface GameActions {
   toggleFastForward: () => void;
   runTacticalAI: () => void;
   _runStrategicAI: (nationIds: string[], idx: number) => void;
+  // 行軍計画
+  startMarchPlan: (fromId: string) => void;
+  cancelMarchPlanMode: () => void;
+  previewMarchPlan: (fromId: string, toId: string) => void;
+  createMarchPlan: (fromId: string, toId: string) => void;
+  cancelMarchPlan: (planId: string) => void;
+  _executeMarchPlans: () => void;
 }
 
 function computeWinner(nations: GameState['nations'], currentWinnerId: string | null): string | null {
@@ -558,14 +570,14 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
   saveGame: () => {
     const {
       phase, month, currentNationId, nations, territories, characters,
-      relations, objectives, mercPool, mercDurations,
+      relations, objectives, mercPool, mercDurations, marchPlans,
       winnerId, campaignProgress, campaignScenario, ui,
     } = get();
     const data = {
       phase, month, currentNationId, nations, territories, characters,
-      relations, objectives, mercPool, mercDurations,
+      relations, objectives, mercPool, mercDurations, marchPlans,
       winnerId, campaignProgress, campaignScenario,
-      ui: { ...ui, invasionMode: null, invasionPending: null, transferMode: null, transferPending: null, gameOverShown: false },
+      ui: { ...ui, invasionMode: null, invasionPending: null, transferMode: null, transferPending: null, marchPlanMode: null, marchPlanPreview: null, gameOverShown: false },
     };
     localStorage.setItem('srpg-conquest-save', JSON.stringify(data));
     localStorage.setItem('srpg-conquest-save-ts', Date.now().toString());
@@ -576,14 +588,14 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     if (!raw) return;
     try {
       const data = JSON.parse(raw) as Partial<GameState>;
-      set({ ...data, battle: null, isAIThinking: false, currentEvent: null });
+      set({ ...data, marchPlans: data.marchPlans ?? [], battle: null, isAIThinking: false, currentEvent: null });
     } catch { /* 壊れたセーブは無視 */ }
   },
 
   // ── 戦略マップ操作 ──────────────────────────────────
 
   selectTerritory: (id) =>
-    set((state) => ({ ui: { ...state.ui, selectedTerritoryId: id, invasionMode: null } })),
+    set((state) => ({ ui: { ...state.ui, selectedTerritoryId: id, invasionMode: null, marchPlanMode: null, marchPlanPreview: null } })),
 
   startInvasion: (fromId) =>
     set((state) => ({ ui: { ...state.ui, invasionMode: { fromTerritoryId: fromId } } })),
@@ -933,6 +945,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         invasionPending: null,
         transferMode: null,
         transferPending: null,
+        marchPlanMode: null,
+        marchPlanPreview: null,
         gameOverShown: winnerId !== null && !state.campaignScenario,
         activePanel: 'none',
         log: [...objEntries, monthEntry, ...state.ui.log].slice(0, 10),
@@ -948,7 +962,14 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       const aiNationIds = Object.values(newNations)
         .filter((n) => !n.isPlayer && !n.defeated)
         .map((n) => n.id);
-      setTimeout(() => get()._runStrategicAI(aiNationIds, 0), 500);
+      // 行軍計画を1ステップ実行してからAIターンへ
+      setTimeout(() => {
+        get()._executeMarchPlans();
+        const s2 = get();
+        if (!s2.winnerId) {
+          setTimeout(() => get()._runStrategicAI(aiNationIds, 0), 300);
+        }
+      }, 200);
     }
   },
 
@@ -1581,6 +1602,177 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 
   toggleFastForward: () => set((state) => ({ fastForward: !state.fastForward })),
 
+  // ── 行軍計画 ──────────────────────────────────────
+
+  startMarchPlan: (fromId) =>
+    set((state) => ({
+      ui: {
+        ...state.ui,
+        marchPlanMode: { fromTerritoryId: fromId },
+        marchPlanPreview: null,
+        invasionMode: null,
+        transferMode: null,
+      },
+    })),
+
+  cancelMarchPlanMode: () =>
+    set((state) => ({
+      ui: { ...state.ui, marchPlanMode: null, marchPlanPreview: null },
+    })),
+
+  previewMarchPlan: (fromId, toId) => {
+    const state = get();
+    const player = Object.values(state.nations).find((n) => n.isPlayer)!;
+    const path = findMarchPath(fromId, toId, state.territories, player.id);
+    if (!path) return;
+    set((s) => ({
+      ui: { ...s.ui, marchPlanPreview: { fromId, toId, path } },
+    }));
+  },
+
+  createMarchPlan: (fromId, toId) => {
+    const state = get();
+    const player = Object.values(state.nations).find((n) => n.isPlayer)!;
+    const path = findMarchPath(fromId, toId, state.territories, player.id);
+    if (!path || path.length < 2) return;
+    const from = state.territories[fromId];
+    const to = state.territories[toId];
+    const steps = path.length - 1;
+    const plan = {
+      id: `plan-${Date.now()}`,
+      path,
+      currentIndex: 0,
+      targetOwnerId: to.ownerId,
+      label: `${from.name} → ${to.name}`,
+      createdMonth: state.month,
+      status: 'active' as const,
+    };
+    const logEntry = `📋 行軍計画「${plan.label}」設定（${steps}ヶ月予定）`;
+    set((s) => ({
+      marchPlans: [...s.marchPlans, plan],
+      ui: {
+        ...s.ui,
+        marchPlanMode: null,
+        marchPlanPreview: null,
+        log: [logEntry, ...s.ui.log].slice(0, 10),
+      },
+    }));
+  },
+
+  cancelMarchPlan: (planId) =>
+    set((state) => ({
+      marchPlans: state.marchPlans.map((p) =>
+        p.id === planId ? { ...p, status: 'cancelled' as const, cancelReason: 'プレイヤーによるキャンセル' } : p,
+      ),
+    })),
+
+  _executeMarchPlans: () => {
+    const state = get();
+    if (state.winnerId !== null) return;
+    const activePlans = state.marchPlans.filter((p) => p.status === 'active');
+    if (activePlans.length === 0) return;
+
+    const player = Object.values(state.nations).find((n) => n.isPlayer)!;
+    let workTerr = { ...state.territories };
+    let workNations = { ...state.nations };
+    let workChars = { ...state.characters };
+    let workWinnerId: string | null = state.winnerId;
+    const updatedPlans = state.marchPlans.map((p) => ({ ...p }));
+    const logs: string[] = [];
+
+    for (let i = 0; i < updatedPlans.length; i++) {
+      const plan = updatedPlans[i];
+      if (plan.status !== 'active') continue;
+
+      const curId = plan.path[plan.currentIndex];
+      const nextId = plan.path[plan.currentIndex + 1];
+      const targetId = plan.path[plan.path.length - 1];
+
+      const curTerr = workTerr[curId];
+      const nextTerr = workTerr[nextId];
+      const targetTerr = workTerr[targetId];
+
+      // キャンセル判定
+      if (!curTerr || curTerr.ownerId !== player.id) {
+        updatedPlans[i] = { ...plan, status: 'cancelled', cancelReason: '出発地が制圧されました' };
+        logs.push(`❌ 行軍計画「${plan.label}」キャンセル: ${curTerr?.name ?? curId}が制圧されました`);
+        continue;
+      }
+      if (!targetTerr || targetTerr.ownerId === player.id) {
+        updatedPlans[i] = { ...plan, status: 'done', cancelReason: '目標は既に自国領' };
+        logs.push(`✅ 行軍計画「${plan.label}」: 目標${targetTerr?.name ?? ''}は既に自国領です`);
+        continue;
+      }
+      // 中継地が敵に制圧されてルート封鎖
+      const isNextEnemy = nextTerr.ownerId !== player.id;
+      if (isNextEnemy && plan.currentIndex + 1 < plan.path.length - 1) {
+        updatedPlans[i] = { ...plan, status: 'cancelled', cancelReason: 'ルートが塞がれました' };
+        logs.push(`❌ 行軍計画「${plan.label}」キャンセル: ${nextTerr.name}がルートを塞ぎました`);
+        continue;
+      }
+      const aliveTroops = curTerr.garrisonIds.filter((id) => (workChars[id]?.hp ?? 0) > 0);
+      if (aliveTroops.length === 0) {
+        updatedPlans[i] = { ...plan, status: 'cancelled', cancelReason: '兵力がいません' };
+        logs.push(`❌ 行軍計画「${plan.label}」キャンセル: ${curTerr.name}に兵力がいません`);
+        continue;
+      }
+
+      if (!isNextEnemy) {
+        // 友軍領地への兵力移動
+        const deadTroops = curTerr.garrisonIds.filter((id) => (workChars[id]?.hp ?? 0) <= 0);
+        workTerr = {
+          ...workTerr,
+          [curId]: { ...curTerr, garrisonIds: deadTroops, hasActed: true },
+          [nextId]: { ...nextTerr, garrisonIds: [...nextTerr.garrisonIds, ...aliveTroops] },
+        };
+        updatedPlans[i] = { ...plan, currentIndex: plan.currentIndex + 1 };
+        logs.push(`🚶 行軍計画「${plan.label}」: ${curTerr.name} → ${nextTerr.name} へ移動`);
+      } else {
+        // 侵攻（自動解決）
+        const workState: GameState = {
+          ...state,
+          territories: workTerr,
+          nations: workNations,
+          characters: workChars,
+          winnerId: workWinnerId,
+        };
+        const result = resolveAutoBattle(workState, curId, nextId);
+        const patch = applyStrategicBattleResult(workState, curId, nextId, result.winnerSide, result.survivingAttackerIds);
+        // patch の最初のログエントリを転用
+        if (patch.ui?.log?.[0]) logs.push(patch.ui.log[0]);
+        workTerr = { ...workTerr, ...(patch.territories ?? {}) };
+        workNations = { ...workNations, ...(patch.nations ?? {}) };
+        if (patch.winnerId !== undefined && patch.winnerId !== null) workWinnerId = patch.winnerId;
+
+        if (result.winnerSide === 'attacker') {
+          const newIdx = plan.currentIndex + 1;
+          if (newIdx >= plan.path.length - 1) {
+            updatedPlans[i] = { ...plan, currentIndex: newIdx, status: 'done' };
+            logs.push(`✅ 行軍計画「${plan.label}」完了！`);
+          } else {
+            updatedPlans[i] = { ...plan, currentIndex: newIdx };
+          }
+        } else {
+          updatedPlans[i] = { ...plan, status: 'cancelled', cancelReason: `${nextTerr.name}攻略失敗` };
+          logs.push(`❌ 行軍計画「${plan.label}」: ${nextTerr.name}の攻略に失敗`);
+        }
+      }
+    }
+
+    const curUiLog = get().ui.log;
+    set({
+      territories: workTerr,
+      nations: workNations,
+      characters: workChars,
+      winnerId: workWinnerId,
+      marchPlans: updatedPlans,
+      ui: {
+        ...get().ui,
+        log: [...logs, ...curUiLog].slice(0, 10),
+      },
+    });
+  },
+
   // ── AI ────────────────────────────────────────────
 
   runTacticalAI: () => {
@@ -1596,8 +1788,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       const currentId = battle.initiativeOrder[battle.initiativeIndex];
       const currentUnit = battle.units.find((u) => u.characterId === currentId);
 
-      // 現在のユニットがプレイヤー側 or 存在しない → AI終了
-      if (!currentUnit || currentUnit.side === battle.playerSide) {
+      // 現在のユニットがプレイヤー側 or 存在しない → AI終了（autoTactical時はプレイヤー側も続行）
+      if (!currentUnit || (currentUnit.side === battle.playerSide && !battle.autoTactical)) {
         set({ isAIThinking: false });
         return;
       }
@@ -1610,7 +1802,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
           if (!s2.battle || s2.battle.pendingEnd !== null) { set({ isAIThinking: false }); return; }
           const nextId = s2.battle.initiativeOrder[s2.battle.initiativeIndex];
           const nextUnit = s2.battle.units.find(u => u.characterId === nextId);
-          if (nextUnit && nextUnit.side !== s2.battle.playerSide) {
+          if (nextUnit && (nextUnit.side !== s2.battle.playerSide || s2.battle.autoTactical)) {
             setTimeout(executeAIUnit, d(300));
           } else {
             set({ isAIThinking: false });
@@ -1640,7 +1832,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
                 if (!s2.battle || s2.battle.pendingEnd !== null) { set({ isAIThinking: false }); return; }
                 const nextId = s2.battle.initiativeOrder[s2.battle.initiativeIndex];
                 const nextUnit = s2.battle.units.find(u => u.characterId === nextId);
-                if (nextUnit && nextUnit.side !== s2.battle.playerSide) {
+                if (nextUnit && (nextUnit.side !== s2.battle.playerSide || s2.battle.autoTactical)) {
                   setTimeout(executeAIUnit, d(400));
                 } else {
                   set({ isAIThinking: false });
@@ -1653,7 +1845,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
                 if (!s2.battle || s2.battle.pendingEnd !== null) { set({ isAIThinking: false }); return; }
                 const nextId = s2.battle.initiativeOrder[s2.battle.initiativeIndex];
                 const nextUnit = s2.battle.units.find(u => u.characterId === nextId);
-                if (nextUnit && nextUnit.side !== s2.battle.playerSide) {
+                if (nextUnit && (nextUnit.side !== s2.battle.playerSide || s2.battle.autoTactical)) {
                   setTimeout(executeAIUnit, d(300));
                 } else {
                   set({ isAIThinking: false });
@@ -1665,7 +1857,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
             if (!s2.battle || s2.battle.pendingEnd !== null) { set({ isAIThinking: false }); return; }
             const nextId = s2.battle.initiativeOrder[s2.battle.initiativeIndex];
             const nextUnit = s2.battle.units.find((u) => u.characterId === nextId);
-            if (nextUnit && nextUnit.side !== s2.battle.playerSide) {
+            if (nextUnit && (nextUnit.side !== s2.battle.playerSide || s2.battle.autoTactical)) {
               setTimeout(executeAIUnit, d(300));
             } else {
               set({ isAIThinking: false });
@@ -1679,7 +1871,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
           if (!s2.battle || s2.battle.pendingEnd !== null) { set({ isAIThinking: false }); return; }
           const nextId = s2.battle.initiativeOrder[s2.battle.initiativeIndex];
           const nextUnit = s2.battle.units.find(u => u.characterId === nextId);
-          if (nextUnit && nextUnit.side !== s2.battle.playerSide) {
+          if (nextUnit && (nextUnit.side !== s2.battle.playerSide || s2.battle.autoTactical)) {
             setTimeout(executeAIUnit, d(500));
           } else {
             set({ isAIThinking: false });
@@ -1699,7 +1891,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
             if (!freshUnit || freshUnit.hasActed) {
               const nextId = s.battle.initiativeOrder[s.battle.initiativeIndex];
               const nextUnit = s.battle.units.find((u) => u.characterId === nextId);
-              if (nextUnit && nextUnit.side !== s.battle.playerSide) setTimeout(executeAIUnit, d(300));
+              if (nextUnit && (nextUnit.side !== s.battle.playerSide || s.battle.autoTactical)) setTimeout(executeAIUnit, d(300));
               else set({ isAIThinking: false });
               return;
             }
@@ -1716,7 +1908,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
                 if (!s2.battle || s2.battle.pendingEnd !== null) { set({ isAIThinking: false }); return; }
                 const nextId = s2.battle.initiativeOrder[s2.battle.initiativeIndex];
                 const nextUnit = s2.battle.units.find((u) => u.characterId === nextId);
-                if (nextUnit && nextUnit.side !== s2.battle.playerSide) setTimeout(executeAIUnit, d(400));
+                if (nextUnit && (nextUnit.side !== s2.battle.playerSide || s2.battle.autoTactical)) setTimeout(executeAIUnit, d(400));
                 else set({ isAIThinking: false });
               }, d(700));
             } else {
@@ -1726,7 +1918,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
                 if (!s2.battle || s2.battle.pendingEnd !== null) { set({ isAIThinking: false }); return; }
                 const nextId = s2.battle.initiativeOrder[s2.battle.initiativeIndex];
                 const nextUnit = s2.battle.units.find((u) => u.characterId === nextId);
-                if (nextUnit && nextUnit.side !== s2.battle.playerSide) setTimeout(executeAIUnit, d(300));
+                if (nextUnit && (nextUnit.side !== s2.battle.playerSide || s2.battle.autoTactical)) setTimeout(executeAIUnit, d(300));
                 else set({ isAIThinking: false });
               }, d(100));
             }
@@ -1738,14 +1930,14 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
               if (!s2.battle || s2.battle.pendingEnd !== null) { set({ isAIThinking: false }); return; }
               const nextId = s2.battle.initiativeOrder[s2.battle.initiativeIndex];
               const nextUnit = s2.battle.units.find((u) => u.characterId === nextId);
-              if (nextUnit && nextUnit.side !== s2.battle.playerSide) setTimeout(executeAIUnit, d(400));
+              if (nextUnit && (nextUnit.side !== s2.battle.playerSide || s2.battle.autoTactical)) setTimeout(executeAIUnit, d(400));
               else set({ isAIThinking: false });
             }, d(700));
           } else {
             // 盾士・魔術師: ターン自動進行済み
             const nextId = s.battle.initiativeOrder[s.battle.initiativeIndex];
             const nextUnit = s.battle.units.find((u) => u.characterId === nextId);
-            if (nextUnit && nextUnit.side !== s.battle.playerSide) setTimeout(executeAIUnit, d(300));
+            if (nextUnit && (nextUnit.side !== s.battle.playerSide || s.battle.autoTactical)) setTimeout(executeAIUnit, d(300));
             else set({ isAIThinking: false });
           }
         }, d(400));
@@ -1756,7 +1948,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
           if (!s2.battle || s2.battle.pendingEnd !== null) { set({ isAIThinking: false }); return; }
           const nextId = s2.battle.initiativeOrder[s2.battle.initiativeIndex];
           const nextUnit = s2.battle.units.find(u => u.characterId === nextId);
-          if (nextUnit && nextUnit.side !== s2.battle.playerSide) {
+          if (nextUnit && (nextUnit.side !== s2.battle.playerSide || s2.battle.autoTactical)) {
             setTimeout(executeAIUnit, d(300));
           } else {
             set({ isAIThinking: false });
