@@ -26,6 +26,8 @@ import SimulationPanel from './components/SimulationPanel';
 import RecruitPanel from './components/RecruitPanel';
 import ShopPanel from './components/ShopPanel';
 import Tutorial, { shouldShowTutorial } from './components/Tutorial';
+import AchievementsPanel from './components/AchievementsPanel';
+import AchievementToast from './components/AchievementToast';
 
 export default function App() {
   const { phase, ui } = useGameStore();
@@ -58,6 +60,7 @@ export default function App() {
         <TacticalControl />
         <InitiativeBar />
         <TacticalMap />
+        <TerrainLegend />
         <BattleLog />
       </div>
     );

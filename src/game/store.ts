@@ -12,7 +12,7 @@ import { decideAIUnitAction } from './tactical/ai';
 import { decideAINationAction, decideAITransfers } from './strategic/ai';
 import { resolveAutoBattle } from './strategic/autoBattle';
 import { findMarchPath } from './strategic/pathfinding';
-import { generateTerrain } from './terrain';
+import { generateTerrain, TERRAIN_DEFS as TERRAIN_DEFS_STORE } from './terrain';
 import { generateRandomEvent } from '../data/events';
 import { seAttack, seDefeat, seLevelUp, seVictory, seDefeat2, seSkill, seInvade } from './sound';
 import { INITIAL_OBJECTIVES, checkObjectives } from '../data/objectives';
@@ -118,11 +118,17 @@ function buildScenarioState(
     marchPlans: [],
     playerInventory: {},
     ui: { ...INITIAL_UI },
+    // 実績はロード時に localStorage から引き継ぐ（後で上書き）
+    playerStats: defaultStats(),
+    unlockedAchievementIds: [],
+    pendingAchievementToasts: [],
+    currentGameLosses: 0,
   };
 }
 
 const getInitialState = (): GameState => {
   // setup フェーズで開始; 国家未選択
+  const savedAch = loadAchievements();
   return {
     phase: 'setup',
     month: 1,
@@ -149,6 +155,10 @@ const getInitialState = (): GameState => {
     campaignProgress: null,
     campaignScenario: null,
     ui: { ...INITIAL_UI },
+    playerStats: savedAch.stats,
+    unlockedAchievementIds: savedAch.unlockedIds,
+    pendingAchievementToasts: [],
+    currentGameLosses: 0,
   };
 };
 
@@ -212,6 +222,9 @@ interface GameActions {
   createMarchPlan: (fromId: string, toId: string) => void;
   cancelMarchPlan: (planId: string) => void;
   _executeMarchPlans: () => void;
+  // 実績
+  dismissAchievementToast: () => void;
+  _updateStats: (patch: Partial<GameState['playerStats']>) => void;
 }
 
 function computeWinner(nations: GameState['nations'], currentWinnerId: string | null): string | null {
@@ -383,6 +396,37 @@ function resolveBattle(state: GameState, winnerSide: Side): Partial<GameState> {
     recruitedCount: 0,
   } : state.recruitOffer;
 
+  // ── 実績統計の更新 ─────────────────────────────────────
+  const playerIsAttacker = state.battle!.playerSide === 'attacker';
+  const playerWon = winnerSide === state.battle!.playerSide;
+  const playerLost = !playerWon;
+
+  // 速攻勝利 & 全員生存勝利の判定
+  const fastWin = playerWon && (state.battle!.turnCount <= 3);
+  const perfectWin = playerWon && (() => {
+    const playerOrigIds = playerIsAttacker ? battle.originalAttackerIds : battle.originalDefenderIds;
+    const survivingPlayerIds = playerIsAttacker ? survivingAttackerIds : survivingDefenderIds;
+    return playerOrigIds.every((id) => survivingPlayerIds.includes(id));
+  })();
+
+  const newStats: GameState['playerStats'] = {
+    ...state.playerStats,
+    battlesWon: state.playerStats.battlesWon + (playerWon ? 1 : 0),
+    battlesLost: state.playerStats.battlesLost + (playerLost ? 1 : 0),
+    territoriesCaptured: state.playerStats.territoriesCaptured + (playerWon && playerIsAttacker ? 1 : 0),
+    fastBattleWins: state.playerStats.fastBattleWins + (fastWin ? 1 : 0),
+    perfectBattleWins: state.playerStats.perfectBattleWins + (perfectWin ? 1 : 0),
+    maxMonthSurvived: Math.max(state.playerStats.maxMonthSurvived, state.month),
+  };
+
+  const newGameLosses = state.currentGameLosses + (playerLost ? 1 : 0);
+
+  const newUnlocked = [...state.unlockedAchievementIds];
+  const newToasts = [...state.pendingAchievementToasts];
+  const toCheck = checkNewAchievements(newStats, new Set(newUnlocked));
+  toCheck.forEach((id) => { newUnlocked.push(id); newToasts.push(id); });
+  if (toCheck.length > 0) saveAchievements({ unlockedIds: newUnlocked, stats: newStats });
+
   return {
     characters: newCharacters,
     nations: newNations,
@@ -392,6 +436,10 @@ function resolveBattle(state: GameState, winnerSide: Side): Partial<GameState> {
     isAIThinking: false,
     winnerId,
     recruitOffer,
+    playerStats: newStats,
+    unlockedAchievementIds: newUnlocked,
+    pendingAchievementToasts: newToasts,
+    currentGameLosses: newGameLosses,
     ui: {
       ...state.ui,
       invasionMode: null,
@@ -934,6 +982,21 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       }
     }
 
+    // 実績統計: 月・gold・ゲーム勝利
+    const playerGoldNow = eventNations[player.id]?.gold ?? player.gold;
+    const playerWonGame = winnerId === player.id;
+    const newStatsTurn: GameState['playerStats'] = {
+      ...state.playerStats,
+      maxMonthSurvived: Math.max(state.playerStats.maxMonthSurvived, nextMonth),
+      maxGoldHeld: Math.max(state.playerStats.maxGoldHeld, playerGoldNow),
+      gamesWon: state.playerStats.gamesWon + (playerWonGame ? 1 : 0),
+      noLossWins: state.playerStats.noLossWins + (playerWonGame && state.currentGameLosses === 0 ? 1 : 0),
+    };
+    const newUnlockedTurn = [...state.unlockedAchievementIds];
+    const newToastsTurn = [...state.pendingAchievementToasts];
+    checkNewAchievements(newStatsTurn, new Set(newUnlockedTurn)).forEach((id) => { newUnlockedTurn.push(id); newToastsTurn.push(id); });
+    if (newUnlockedTurn.length > state.unlockedAchievementIds.length) saveAchievements({ unlockedIds: newUnlockedTurn, stats: newStatsTurn });
+
     set({
       territories: newTerritories,
       nations: eventNations,
@@ -948,6 +1011,10 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       mercDurations: newMercDurations,
       currentEvent: newEvent,
       isAIThinking: campaignVictory === null && !winnerId,
+      playerStats: newStatsTurn,
+      unlockedAchievementIds: newUnlockedTurn,
+      pendingAchievementToasts: newToastsTurn,
+      currentGameLosses: playerWonGame ? 0 : state.currentGameLosses,
       ui: {
         ...state.ui,
         invasionMode: null,
@@ -1137,6 +1204,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       if (defeated) seDefeat(); else seAttack();
       if (didLevelUp) setTimeout(seLevelUp, 150);
 
+      const terrainDef = TERRAIN_DEFS_STORE[terrain];
+      const terrainBonus = attackerChar.jobId === 'mage' ? terrainDef.mdefBonus : terrainDef.defBonus;
       const logEntry: BattleLogEntry = {
         attackerName: attackerChar.name,
         defenderName: defenderChar.name,
@@ -1145,6 +1214,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         defenderPos: { ...target.position },
         levelUp: didLevelUp || undefined,
         newLevel: didLevelUp ? atkCh.level : undefined,
+        terrainType: terrain !== 'plain' ? terrain : undefined,
+        terrainBonus: terrainBonus > 0 ? terrainBonus : undefined,
       };
 
       const attackerUnits = newUnits.filter((u) => u.side === 'attacker');
@@ -1166,6 +1237,31 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         newBattle = doAdvanceInitiative(newBattle);
       } else {
         newBattle = { ...newBattle, selectedUnitId: null, reachableCells: [], attackTargets: [] };
+      }
+
+      // ── 実績統計: 撃破・レベルアップ・渾身撃 ──────────────
+      const playerIsAtk2 = state.battle.playerSide === attacker.side;
+      if (defeated && playerIsAtk2) {
+        const newStats2 = {
+          ...state.playerStats,
+          unitsDefeated: state.playerStats.unitsDefeated + 1,
+          powerAttackKills: state.playerStats.powerAttackKills + (isPowerAttack ? 1 : 0),
+          maxLevelReached: Math.max(state.playerStats.maxLevelReached, atkCh.level),
+        };
+        const newUnlocked2 = [...state.unlockedAchievementIds];
+        const newToasts2 = [...state.pendingAchievementToasts];
+        const toCheck2 = checkNewAchievements(newStats2, new Set(newUnlocked2));
+        toCheck2.forEach((id) => { newUnlocked2.push(id); newToasts2.push(id); });
+        if (toCheck2.length > 0) saveAchievements({ unlockedIds: newUnlocked2, stats: newStats2 });
+        return { characters: newCharacters, battle: newBattle, playerStats: newStats2, unlockedAchievementIds: newUnlocked2, pendingAchievementToasts: newToasts2 };
+      } else if (didLevelUp) {
+        const newStats2 = { ...state.playerStats, maxLevelReached: Math.max(state.playerStats.maxLevelReached, atkCh.level) };
+        const newUnlocked2 = [...state.unlockedAchievementIds];
+        const newToasts2 = [...state.pendingAchievementToasts];
+        const toCheck2 = checkNewAchievements(newStats2, new Set(newUnlocked2));
+        toCheck2.forEach((id) => { newUnlocked2.push(id); newToasts2.push(id); });
+        if (toCheck2.length > 0) saveAchievements({ unlockedIds: newUnlocked2, stats: newStats2 });
+        return { characters: newCharacters, battle: newBattle, playerStats: newStats2, unlockedAchievementIds: newUnlocked2, pendingAchievementToasts: newToasts2 };
       }
 
       return { characters: newCharacters, battle: newBattle };
@@ -1332,7 +1428,9 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
           const dmg = calculateDamage(ch, eCh, terrain, false);
           const newHp = enemy.currentHp - dmg;
           const defeated = newHp <= 0;
-          logEntries.push({ attackerName: ch.name, defenderName: state.characters[enemy.characterId].name, damage: dmg, defeated, defenderPos: { ...enemy.position } });
+          const terrainDef2 = TERRAIN_DEFS_STORE[terrain];
+          const tBonus2 = terrainDef2.mdefBonus;
+          logEntries.push({ attackerName: ch.name, defenderName: state.characters[enemy.characterId].name, damage: dmg, defeated, defenderPos: { ...enemy.position }, terrainType: terrain !== 'plain' ? terrain : undefined, terrainBonus: tBonus2 > 0 ? tBonus2 : undefined });
           if (defeated) {
             newCharacters[enemy.characterId] = { ...newCharacters[enemy.characterId], hp: 0 };
             newUnits = newUnits.filter((u) => u.characterId !== enemy.characterId);
@@ -1360,6 +1458,23 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         let newBattle = { ...state.battle, units: newUnits, recentLog: [...logEntries, ...state.battle.recentLog].slice(0, 10), pendingEnd, skillMode: false, skillTargets: [] as string[] };
         if (!pendingEnd) newBattle = doAdvanceInitiative(newBattle);
         else newBattle = { ...newBattle, selectedUnitId: null, reachableCells: [], attackTargets: [] };
+
+        // 実績統計: AoE撃破 / レベルアップ
+        if (isPlayerUnit2) {
+          const killCount = logEntries.filter((e) => e.defeated).length;
+          const newStats3 = {
+            ...state.playerStats,
+            unitsDefeated: state.playerStats.unitsDefeated + killCount,
+            aoeTripleKills: state.playerStats.aoeTripleKills + (killCount >= 3 ? 1 : 0),
+            maxLevelReached: Math.max(state.playerStats.maxLevelReached, atkCh.level),
+          };
+          const newUnlocked3 = [...state.unlockedAchievementIds];
+          const newToasts3 = [...state.pendingAchievementToasts];
+          const toCheck3 = checkNewAchievements(newStats3, new Set(newUnlocked3));
+          toCheck3.forEach((id) => { newUnlocked3.push(id); newToasts3.push(id); });
+          if (toCheck3.length > 0) saveAchievements({ unlockedIds: newUnlocked3, stats: newStats3 });
+          return { characters: newCharacters, battle: newBattle, playerStats: newStats3, unlockedAchievementIds: newUnlocked3, pendingAchievementToasts: newToasts3 };
+        }
         return { characters: newCharacters, battle: newBattle };
       }
 
@@ -1412,7 +1527,9 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         const dmg = calculateDamage(ch, buffedDef, terrain, false);
         const newHp = t.currentHp - dmg;
         const defeated = newHp <= 0;
-        entries.push({ attackerName: ch.name, defenderName: defenderChar.name, damage: dmg, defeated, defenderPos: { ...t.position } });
+        const tDef3 = TERRAIN_DEFS_STORE[terrain];
+        const tBonus3 = ch.jobId === 'mage' ? tDef3.mdefBonus : tDef3.defBonus;
+        entries.push({ attackerName: ch.name, defenderName: defenderChar.name, damage: dmg, defeated, defenderPos: { ...t.position }, terrainType: terrain !== 'plain' ? terrain : undefined, terrainBonus: tBonus3 > 0 ? tBonus3 : undefined });
         let units = currentUnits.map((u) => u.characterId === targetId ? { ...u, currentHp: newHp } : u);
         const newChars = { ...chars };
         if (defeated) { newChars[targetId] = { ...chars[targetId], hp: 0 }; units = units.filter((u) => u.characterId !== targetId); }
@@ -1486,9 +1603,18 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       const newNations = { ...state.nations, [player.id]: { ...player, gold: player.gold - cost } };
       const newRelations = { ...state.relations, [nationId]: { status: 'alliance' as const, turnsLeft: 5 } };
       const nationName = state.nations[nationId].name;
+      // 実績統計
+      const newStatsAl = { ...state.playerStats, alliancesFormed: state.playerStats.alliancesFormed + 1 };
+      const newUnlockedAl = [...state.unlockedAchievementIds];
+      const newToastsAl = [...state.pendingAchievementToasts];
+      checkNewAchievements(newStatsAl, new Set(newUnlockedAl)).forEach((id) => { newUnlockedAl.push(id); newToastsAl.push(id); });
+      saveAchievements({ unlockedIds: newUnlockedAl, stats: newStatsAl });
       return {
         nations: newNations,
         relations: newRelations,
+        playerStats: newStatsAl,
+        unlockedAchievementIds: newUnlockedAl,
+        pendingAchievementToasts: newToastsAl,
         ui: { ...state.ui, log: [`🤝 ${nationName}と同盟締結（5ヶ月間）`, ...state.ui.log].slice(0, 10) },
       };
     }),
@@ -1532,6 +1658,12 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         ? { ...state.territories, [capId]: { ...capital, garrisonIds: [...capital.garrisonIds, charId] } }
         : state.territories;
 
+      // 実績統計
+      const newStatsMerc = { ...state.playerStats, mercenariesHired: state.playerStats.mercenariesHired + 1 };
+      const newUnlockedMerc = [...state.unlockedAchievementIds];
+      const newToastsMerc = [...state.pendingAchievementToasts];
+      checkNewAchievements(newStatsMerc, new Set(newUnlockedMerc)).forEach((id) => { newUnlockedMerc.push(id); newToastsMerc.push(id); });
+      if (newUnlockedMerc.length > state.unlockedAchievementIds.length) saveAchievements({ unlockedIds: newUnlockedMerc, stats: newStatsMerc });
       return {
         characters: { ...state.characters, [charId]: newChar },
         nations: {
@@ -1544,6 +1676,9 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         },
         territories: newTerritories,
         mercDurations: { ...state.mercDurations, [charId]: 4 },
+        playerStats: newStatsMerc,
+        unlockedAchievementIds: newUnlockedMerc,
+        pendingAchievementToasts: newToastsMerc,
         ui: { ...state.ui, log: [`💰 傭兵 ${merc.name} を雇用（残4ヶ月）`, ...state.ui.log].slice(0, 10) },
       };
     }),
@@ -1723,6 +1858,19 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
 
   dismissEvent: () => set({ currentEvent: null }),
 
+  dismissAchievementToast: () =>
+    set((state) => ({ pendingAchievementToasts: state.pendingAchievementToasts.slice(1) })),
+
+  _updateStats: (patch) =>
+    set((state) => {
+      const newStats = { ...state.playerStats, ...patch };
+      const newUnlocked = [...state.unlockedAchievementIds];
+      const newToasts = [...state.pendingAchievementToasts];
+      checkNewAchievements(newStats, new Set(newUnlocked)).forEach((id) => { newUnlocked.push(id); newToasts.push(id); });
+      saveAchievements({ unlockedIds: newUnlocked, stats: newStats });
+      return { playerStats: newStats, unlockedAchievementIds: newUnlocked, pendingAchievementToasts: newToasts };
+    }),
+
   togglePanel: (panel) =>
     set((state) => ({
       ui: { ...state.ui, activePanel: state.ui.activePanel === panel ? 'none' : panel },
@@ -1900,12 +2048,25 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
     }
 
     const curUiLog = get().ui.log;
+    // 実績統計: 完了した行軍計画数
+    const completedCount = updatedPlans.filter((p, i) => p.status === 'done' && get().marchPlans[i]?.status !== 'done').length;
+    const curState = get();
+    let extraStats: Partial<GameState> = {};
+    if (completedCount > 0) {
+      const newStatsMarch = { ...curState.playerStats, marchPlansCompleted: curState.playerStats.marchPlansCompleted + completedCount };
+      const newUnlockedMarch = [...curState.unlockedAchievementIds];
+      const newToastsMarch = [...curState.pendingAchievementToasts];
+      checkNewAchievements(newStatsMarch, new Set(newUnlockedMarch)).forEach((id) => { newUnlockedMarch.push(id); newToastsMarch.push(id); });
+      if (newUnlockedMarch.length > curState.unlockedAchievementIds.length) saveAchievements({ unlockedIds: newUnlockedMarch, stats: newStatsMarch });
+      extraStats = { playerStats: newStatsMarch, unlockedAchievementIds: newUnlockedMarch, pendingAchievementToasts: newToastsMarch };
+    }
     set({
       territories: workTerr,
       nations: workNations,
       characters: workChars,
       winnerId: workWinnerId,
       marchPlans: updatedPlans,
+      ...extraStats,
       ui: {
         ...get().ui,
         log: [...logs, ...curUiLog].slice(0, 10),
