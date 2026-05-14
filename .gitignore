@@ -15,6 +15,7 @@ dist-ssr
 
 # OS
 .DS_Store
+._*
 Thumbs.db
 
 # Env
@@ -27,3 +28,6 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 .vercel
+
+# TypeScript build cache
+*.tsbuildinfo
