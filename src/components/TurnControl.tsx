@@ -98,6 +98,10 @@ export default function TurnControl() {
             onClick={() => togglePanel('simulation')}
             style={{ ...btnStyle(ui.activePanel === 'simulation' ? '#7c3aed' : '#374151') }}
             title="シミュレーション">🎲</button>
+          <button
+            onClick={() => togglePanel('achievements')}
+            style={{ ...btnStyle(ui.activePanel === 'achievements' ? '#92400e' : '#374151') }}
+            title="実績">🏆</button>
           {!isMobile && <div style={{ width: 1, background: '#374151', alignSelf: 'stretch', margin: '0 4px' }} />}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
             <button onClick={handleSave} disabled={!canEndTurn} style={btnStyle('#065f46', canEndTurn)} title="セーブ">セーブ</button>
