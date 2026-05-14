@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { useGameStore } from '../game/store';
 import { NATIONS } from '../data/nations';
 import { CHARACTERS } from '../data/characters';
 import { useIsMobile } from '../hooks/useIsMobile';
+import RandomMapSetup from './RandomMapSetup';
 
 const FACTION_ICON: Record<string, string> = {
   '朱雀': '🦅', '青龍': '🐉', '玄武': '🐢', '黄竜': '🌟', '白虎': '🐯',
@@ -45,6 +47,7 @@ function getNationComposition(nationId: string): Record<string, number> {
 export default function NationSelect() {
   const { selectNation, openCampaignSelect, openMapEditor } = useGameStore();
   const isMobile = useIsMobile();
+  const [showRandomMap, setShowRandomMap] = useState(false);
   const nations = Object.values(NATIONS);
 
   return (
@@ -95,7 +98,20 @@ export default function NationSelect() {
           <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 8 }}>カスタムマップを作成</div>
           <div style={{ fontSize: 11, color: '#22c55e' }}>→ 開く</div>
         </button>
+        <button
+          onClick={() => setShowRandomMap(true)}
+          style={{
+            background: '#1a0d2e', border: '2px solid #8b5cf6', borderRadius: 10,
+            padding: '14px 20px', textAlign: 'center', cursor: 'pointer', color: '#f9fafb',
+            flex: '1 1 160px', minWidth: 0,
+          }}
+        >
+          <div style={{ fontSize: 14, fontWeight: 'bold', color: '#a78bfa', marginBottom: 4 }}>🎲 ランダムマップ</div>
+          <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 8 }}>配置・収入をランダム生成<br />シード再利用で再現可能</div>
+          <div style={{ fontSize: 11, color: '#8b5cf6' }}>→ 生成</div>
+        </button>
       </div>
+      {showRandomMap && <RandomMapSetup onClose={() => setShowRandomMap(false)} />}
 
       {/* フリープレイ国家選択 */}
       <div
