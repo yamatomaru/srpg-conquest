@@ -1,5 +1,6 @@
 import { useGameStore } from '../game/store';
 import { JOBS } from '../data/jobs';
+import { TRAIT_COLOR } from '../data/characters';
 
 const JOB_COLOR: Record<string, string> = {
   shielder: '#6b7280', warrior: '#ef4444', spearman: '#f59e0b',
@@ -148,12 +149,23 @@ export default function TerritoryDetail() {
                 >
                   {/* 名前行 */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
                       <span style={{ width: 18, height: 18, borderRadius: 3, background: JOB_COLOR[ch.jobId], display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#fff', fontWeight: 'bold', flexShrink: 0 }}>
                         {job.name[0]}
                       </span>
                       <span style={{ color: isDead ? '#9ca3af' : '#e5e7eb', fontWeight: 'bold', fontSize: 12 }}>{ch.name}</span>
                       <span style={{ color: '#fbbf24', fontSize: 11 }}>Lv.{ch.level}</span>
+                      {ch.trait && ch.trait !== '均衡型' && (
+                        <span style={{
+                          fontSize: 10, padding: '1px 5px', borderRadius: 10,
+                          background: TRAIT_COLOR[ch.trait] + '33',
+                          color: TRAIT_COLOR[ch.trait],
+                          border: `1px solid ${TRAIT_COLOR[ch.trait]}66`,
+                          fontWeight: 'bold', flexShrink: 0,
+                        }}>
+                          {ch.trait}
+                        </span>
+                      )}
                     </div>
                     <span style={{ color: isDead ? '#ef4444' : '#d1d5db', fontSize: 11 }}>
                       {isDead ? '回復中' : `${ch.hp}/${ch.maxHp}`}

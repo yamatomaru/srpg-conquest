@@ -22,10 +22,15 @@ export interface Job {
   skillName: string; // 特殊スキル表示名
 }
 
+export type CharacterTrait =
+  | '攻撃特化' | '防御特化' | '俊足' | '魔法特化'
+  | '重装備'   | '遠距離特化' | '万能型' | '均衡型';
+
 export interface Character {
   id: string;
   name: string;
   jobId: JobId;
+  trait: CharacterTrait;
   level: number;
   exp: number;       // 経験値
   hp: number;        // 現在HP

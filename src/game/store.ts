@@ -1509,7 +1509,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       const lvBonus = merc.level - 1;
       const charId = `merc_${merc.id}_m${state.month}`;
       const newChar = {
-        id: charId, name: merc.name, jobId: merc.jobId, level: merc.level, exp: 0,
+        id: charId, name: merc.name, jobId: merc.jobId, trait: '均衡型' as const, level: merc.level, exp: 0,
         hp: job.baseHp + lvBonus * 3, maxHp: job.baseHp + lvBonus * 3,
         atk: job.baseAtk + lvBonus, def: job.baseDef + lvBonus,
         matk: job.baseMatk + lvBonus, mdef: job.baseMdef + lvBonus,

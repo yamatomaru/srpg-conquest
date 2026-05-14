@@ -3,6 +3,7 @@ import { JOBS } from '../data/jobs';
 import { TERRAIN_DEFS } from '../game/terrain';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { MAX_BATTLE_UNITS } from '../game/tactical/placement';
+import { TRAIT_COLOR } from '../data/characters';
 
 export default function TacticalControl() {
   const { battle, nations, characters, isAIThinking, endBattle, endUnitTurn, useSkill, cancelSkill, toggleAutoTactical } = useGameStore();
@@ -74,9 +75,20 @@ export default function TacticalControl() {
           <span style={{ color: '#f59e0b' }}>AI思考中...</span>
         ) : currentUnit && currentChar ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, overflow: 'hidden' }}>
-            <span style={{ color: currentUnit.side === battle.playerSide ? '#60a5fa' : '#f87171', fontWeight: 'bold', fontSize: isMobile ? 13 : 18, whiteSpace: 'nowrap' }}>
+            <span style={{ color: currentUnit.side === battle.playerSide ? '#60a5fa' : '#f87171', fontWeight: 'bold', fontSize: isMobile ? 13 : 18, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}>
               ▶ {currentChar.name}
-              <span style={{ color: '#9ca3af', fontWeight: 'normal', fontSize: isMobile ? 11 : 14, marginLeft: 6 }}>Lv.{currentChar.level}</span>
+              <span style={{ color: '#9ca3af', fontWeight: 'normal', fontSize: isMobile ? 11 : 14 }}>Lv.{currentChar.level}</span>
+              {currentChar.trait && currentChar.trait !== '均衡型' && (
+                <span style={{
+                  fontSize: isMobile ? 10 : 12, padding: '1px 6px', borderRadius: 10,
+                  background: TRAIT_COLOR[currentChar.trait] + '33',
+                  color: TRAIT_COLOR[currentChar.trait],
+                  border: `1px solid ${TRAIT_COLOR[currentChar.trait]}66`,
+                  fontWeight: 'bold',
+                }}>
+                  {currentChar.trait}
+                </span>
+              )}
             </span>
             {!isMobile && (
               <div style={{ display: 'flex', gap: 12, fontSize: 13, color: '#9ca3af' }}>
