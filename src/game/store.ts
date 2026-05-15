@@ -22,6 +22,7 @@ import type { ItemSlot } from '../data/items';
 import { generateRandomMap } from '../data/randomMap';
 import { checkNewAchievements, loadAchievements, saveAchievements, defaultStats } from '../data/achievements';
 import { BUILDINGS } from '../data/buildings';
+import { getClassChange } from '../data/classChange';
 
 const INITIAL_UI: UISelection = {
   selectedTerritoryId: null,
@@ -230,6 +231,8 @@ interface GameActions {
   _executeMarchPlans: () => void;
   // 内政
   buildStructure: (territoryId: string, buildingType: import('./types').BuildingType) => void;
+  // クラスチェンジ
+  classChange: (charId: string) => void;
   // 実績
   dismissAchievementToast: () => void;
   _updateStats: (patch: Partial<GameState['playerStats']>) => void;
@@ -1471,13 +1474,22 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       const ch = state.characters[unitId];
       const jobId = ch.jobId;
 
-      if (jobId === 'shielder') {
-        // 庇護の構え: DEF+8 バフ、ターン消費
+      if (jobId === 'shielder' || jobId === 'paladin') {
+        // 庇護の構え（盾士: DEF+8）/ 聖護の構え（聖騎士: DEF+12 + MDEF+6 + 自己回復）
+        const defBonus = jobId === 'paladin' ? 12 : 8;
+        const mdefBonus = jobId === 'paladin' ? 6 : 0;
         const prevDef = state.battle.activeBuffs[unitId]?.def ?? 0;
-        const newBuffs = { ...state.battle.activeBuffs, [unitId]: { ...state.battle.activeBuffs[unitId], def: prevDef + 8 } };
-        const newUnits = state.battle.units.map((u) =>
+        const prevMdef = state.battle.activeBuffs[unitId]?.mdef ?? 0;
+        const newBuffs = { ...state.battle.activeBuffs, [unitId]: { def: prevDef + defBonus, mdef: prevMdef + mdefBonus } };
+        let newUnits = state.battle.units.map((u) =>
           u.characterId === unitId ? { ...u, usedSkill: true, hasActed: true } : u,
         );
+        // 聖騎士: 自己回復（MATK分）
+        if (jobId === 'paladin') {
+          const healAmt = Math.floor(ch.matk * 1.0);
+          const newHp = Math.min(ch.maxHp, unit.currentHp + healAmt);
+          newUnits = newUnits.map((u) => u.characterId === unitId ? { ...u, currentHp: newHp } : u);
+        }
         const advanced = doAdvanceInitiative({ ...state.battle, units: newUnits, activeBuffs: newBuffs, skillMode: false, skillTargets: [] as string[] });
         return { battle: advanced };
       }
@@ -1491,8 +1503,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         return { battle: { ...state.battle, units: newUnits, powerAttackIds: newPowerIds, skillMode: false, skillTargets: [] as string[] } };
       }
 
-      if (jobId === 'mage') {
-        // 全体魔法: 射程内の全敵にMATKダメージ
+      if (jobId === 'mage' || jobId === 'sage') {
+        // 全体魔法（魔術師: ×1.0）/ 大魔法（賢者: ×1.5）
         const enemies = state.battle.units.filter((u) => u.side !== unit.side);
         let newUnits = [...state.battle.units];
         const newCharacters = { ...state.characters };
@@ -1504,7 +1516,8 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
           const terrain = state.battle!.map.terrain[enemy.position.y]?.[enemy.position.x] ?? 'plain';
           const eBuff = state.battle!.activeBuffs[enemy.characterId];
           const eCh = { ...state.characters[enemy.characterId], mdef: state.characters[enemy.characterId].mdef + (eBuff?.mdef ?? 0) };
-          const dmg = calculateDamage(ch, eCh, terrain, false);
+          const baseDmg = calculateDamage(ch, eCh, terrain, false);
+          const dmg = jobId === 'sage' ? Math.floor(baseDmg * 1.5) : baseDmg;
           const newHp = enemy.currentHp - dmg;
           const defeated = newHp <= 0;
           const terrainDef2 = TERRAIN_DEFS_STORE[terrain];
@@ -1579,9 +1592,10 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         return { battle: advanced };
       }
 
-      // 要ターゲット選択: 槍士（突撃）・弓師（連射）・騎士（二連撃）
+      // 要ターゲット選択: 槍系（突撃/騎馬突撃）・弓系（連射/三連射）・騎士/勇者（連撃/三連撃）
       let skillTargets: string[] = [];
       if (jobId === 'spearman') {
+        // 突撃: range+1
         skillTargets = state.battle.units
           .filter((u) => u.side !== unit.side)
           .filter((u) => {
@@ -1589,7 +1603,16 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
             return dist >= 1 && dist <= ch.range + 1;
           })
           .map((u) => u.characterId);
-      } else if (jobId === 'archer' || jobId === 'knight') {
+      } else if (jobId === 'lancer') {
+        // 騎馬突撃: range+2
+        skillTargets = state.battle.units
+          .filter((u) => u.side !== unit.side)
+          .filter((u) => {
+            const dist = Math.abs(unit.position.x - u.position.x) + Math.abs(unit.position.y - u.position.y);
+            return dist >= 1 && dist <= ch.range + 2;
+          })
+          .map((u) => u.characterId);
+      } else if (jobId === 'archer' || jobId === 'knight' || jobId === 'hero' || jobId === 'ranger') {
         skillTargets = getAttackTargets(unit, ch, state.battle.units);
       }
       seSkill();
@@ -1642,12 +1665,17 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       const logEntries: BattleLogEntry[] = [];
       let terminated = false;
 
-      if (ch.jobId === 'spearman') {
-        // 突撃: 1回攻撃（延長射程）
+      if (ch.jobId === 'spearman' || ch.jobId === 'lancer') {
+        // 突撃（槍士: +1射程）/ 騎馬突撃（槍騎兵: +2射程）: 1回攻撃
         ({ units: newUnits, chars: newChars, terminated } = applyHit(newUnits, newChars, logEntries));
       } else if (ch.jobId === 'archer' || ch.jobId === 'knight') {
         // 連射 / 二連撃: 2回攻撃
         for (let i = 0; i < 2 && !terminated; i++) {
+          ({ units: newUnits, chars: newChars, terminated } = applyHit(newUnits, newChars, logEntries));
+        }
+      } else if (ch.jobId === 'hero' || ch.jobId === 'ranger') {
+        // 三連撃（勇者）/ 三連射（神射手）: 3回攻撃
+        for (let i = 0; i < 3 && !terminated; i++) {
           ({ units: newUnits, chars: newChars, terminated } = applyHit(newUnits, newChars, logEntries));
         }
       }
@@ -1989,6 +2017,39 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
           ...state.territories,
           [territoryId]: { ...territory, building: buildingType },
         },
+      };
+    }),
+
+  classChange: (charId) =>
+    set((state) => {
+      const player = Object.values(state.nations).find((n) => n.isPlayer);
+      if (!player) return state;
+      if (!player.characterIds.includes(charId)) return state; // 自国キャラのみ
+
+      const ch = state.characters[charId];
+      if (!ch) return state;
+
+      const def = getClassChange(ch.jobId);
+      if (!def) return state; // 昇格できないジョブ
+      if (ch.level < def.minLevel) return state;
+      if (player.gold < def.cost) return state;
+
+      const newCh: typeof ch = {
+        ...ch,
+        jobId: def.to,
+        maxHp: ch.maxHp + def.bonusHp,
+        hp: ch.hp > 0 ? Math.min(ch.maxHp + def.bonusHp, ch.hp + def.bonusHp) : 0,
+        atk: ch.atk + def.bonusAtk,
+        def: ch.def + def.bonusDef,
+        matk: ch.matk + def.bonusMatk,
+        mdef: ch.mdef + def.bonusMdef,
+        mov: ch.mov + def.bonusMov,
+        range: ch.range + def.bonusRange,
+      };
+
+      return {
+        nations: { ...state.nations, [player.id]: { ...player, gold: player.gold - def.cost } },
+        characters: { ...state.characters, [charId]: newCh },
       };
     }),
 

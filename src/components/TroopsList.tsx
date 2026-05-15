@@ -1,10 +1,13 @@
 import { useGameStore } from '../game/store';
 import { JOBS, JOB_ABBR } from '../data/jobs';
+import { isTier2 } from '../data/classChange';
 import { useIsMobile } from '../hooks/useIsMobile';
 
 const JOB_COLOR: Record<string, string> = {
   shielder: '#6b7280', warrior: '#ef4444', spearman: '#f59e0b',
   archer: '#22c55e', mage: '#a855f7', knight: '#f97316', priest: '#ec4899',
+  // Tier 2
+  paladin: '#f0c040', hero: '#f87171', lancer: '#4ade80', ranger: '#34d399', sage: '#e879f9',
 };
 
 export default function TroopsList() {
@@ -17,7 +20,9 @@ export default function TroopsList() {
     t.garrisonIds.forEach((cId) => { charLocation[cId] = t.name; });
   });
 
-  const chars = player.characterIds.map((id) => characters[id]).filter(Boolean);
+  const allChars = player.characterIds.map((id) => characters[id]).filter(Boolean);
+  const eligibleCount = allChars.filter((ch) => ch && !isTier2(ch.jobId) && ch.hp > 0 && ch.level >= 5).length;
+  const chars = allChars;
   chars.sort((a, b) => {
     if (a.hp <= 0 && b.hp > 0) return 1;
     if (b.hp <= 0 && a.hp > 0) return -1;
@@ -124,11 +129,34 @@ export default function TroopsList() {
           </div>
         </div>
 
-        {/* 凡例 */}
-        <div style={{ padding: '8px 16px', borderTop: '1px solid #374151', fontSize: 12, color: '#6b7280', display: 'flex', gap: 16, flexShrink: 0 }}>
-          {Object.entries(JOBS).map(([id, job]) => (
-            <span key={id}><span style={{ color: JOB_COLOR[id] }}>●</span> {job.name}</span>
-          ))}
+        {/* フッター */}
+        <div style={{ padding: '8px 16px', borderTop: '1px solid #374151', flexShrink: 0 }}>
+          {/* クラスチェンジボタン */}
+          <div style={{ marginBottom: 8 }}>
+            <button
+              onClick={() => { togglePanel('troops'); togglePanel('classChange'); }}
+              style={{
+                padding: '6px 16px',
+                background: eligibleCount > 0 ? '#1d4ed8' : '#1f2937',
+                border: `1px solid ${eligibleCount > 0 ? '#3b82f6' : '#374151'}`,
+                borderRadius: 6, color: eligibleCount > 0 ? '#f9fafb' : '#6b7280',
+                cursor: 'pointer', fontSize: 13, fontWeight: 'bold',
+              }}
+            >
+              ⭐ クラスチェンジ
+              {eligibleCount > 0 && (
+                <span style={{ marginLeft: 8, background: '#f0c040', color: '#111', borderRadius: 10, padding: '1px 7px', fontSize: 11 }}>
+                  {eligibleCount}名
+                </span>
+              )}
+            </button>
+          </div>
+          {/* 凡例 */}
+          <div style={{ fontSize: 12, color: '#6b7280', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            {Object.entries(JOBS).map(([id, job]) => (
+              <span key={id}><span style={{ color: JOB_COLOR[id] }}>●</span> {job.name}</span>
+            ))}
+          </div>
         </div>
       </div>
     </div>
