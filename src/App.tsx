@@ -29,10 +29,11 @@ import AchievementsPanel from './components/AchievementsPanel';
 import AchievementToast from './components/AchievementToast';
 import TerrainLegend from './components/TerrainLegend';
 import DomesticPanel from './components/DomesticPanel';
+import ClassChangePanel from './components/ClassChangePanel';
 import Tutorial, { shouldShowTutorial } from './components/Tutorial';
 
 export default function App() {
-  const { phase, ui } = useGameStore();
+  const { phase, ui, togglePanel } = useGameStore();
   const isMobile = useIsMobile();
   const [showTutorial, setShowTutorial] = useState(() => shouldShowTutorial());
 
@@ -119,6 +120,7 @@ export default function App() {
       {ui.activePanel === 'shop' && <ShopPanel />}
       {ui.activePanel === 'achievements' && <AchievementsPanel />}
       {ui.activePanel === 'domestic' && <DomesticPanel />}
+      {ui.activePanel === 'classChange' && <ClassChangePanel onClose={() => togglePanel('classChange')} />}
       <AchievementToast />
     </div>
   );

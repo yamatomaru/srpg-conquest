@@ -8,7 +8,10 @@ export type Difficulty = 'easy' | 'normal' | 'hard';
 // ジョブ・キャラクター
 // ============================================================
 
-export type JobId = 'shielder' | 'warrior' | 'spearman' | 'archer' | 'mage' | 'knight' | 'priest';
+export type JobId =
+  | 'shielder' | 'warrior' | 'spearman' | 'archer' | 'mage'  // Tier 1
+  | 'knight'   | 'priest'                                      // Tier 1 特殊
+  | 'paladin'  | 'hero'   | 'lancer'   | 'ranger' | 'sage';   // Tier 2（クラスチェンジ後）
 
 export type TerrainType = 'plain' | 'forest' | 'mountain' | 'fortress';
 
@@ -87,7 +90,7 @@ export interface InvasionPending {
   toTerritoryId: string;
 }
 
-export type ActivePanel = 'none' | 'troops' | 'diplomacy' | 'mercenary' | 'objectives' | 'simulation' | 'shop' | 'achievements' | 'domestic';
+export type ActivePanel = 'none' | 'troops' | 'diplomacy' | 'mercenary' | 'objectives' | 'simulation' | 'shop' | 'achievements' | 'domestic' | 'classChange';
 
 // ============================================================
 // 内政・建築

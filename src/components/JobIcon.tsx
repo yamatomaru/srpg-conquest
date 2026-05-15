@@ -138,6 +138,67 @@ export default function JobIcon({ jobId, size = 48, color = '#fff' }: Props) {
         </svg>
       );
 
+    case 'paladin':
+      // 聖騎士: 盾に聖十字
+      return (
+        <svg width={s} height={s} viewBox="0 0 48 48">
+          <path d="M24 4 L40 10 L40 26 C40 36 24 44 24 44 C24 44 8 36 8 26 L8 10 Z" fill={color} fillOpacity={0.85} />
+          <line x1={24} y1={14} x2={24} y2={34} stroke={color} strokeWidth={3} strokeOpacity={0.5} />
+          <line x1={15} y1={23} x2={33} y2={23} stroke={color} strokeWidth={3} strokeOpacity={0.5} />
+          {/* 光輪 */}
+          <circle cx={24} cy={8} r={4} fill="none" stroke={color} strokeWidth={1.5} strokeOpacity={0.7} />
+        </svg>
+      );
+
+    case 'hero':
+      // 勇者: 三連剣
+      return (
+        <svg width={s} height={s} viewBox="0 0 48 48">
+          <line x1={12} y1={8} x2={36} y2={40} stroke={color} strokeWidth={3} strokeLinecap="round" />
+          <line x1={24} y1={4} x2={24} y2={44} stroke={color} strokeWidth={3} strokeLinecap="round" />
+          <line x1={36} y1={8} x2={12} y2={40} stroke={color} strokeWidth={3} strokeLinecap="round" />
+          <circle cx={24} cy={24} r={5} fill={color} fillOpacity={0.5} />
+        </svg>
+      );
+
+    case 'lancer':
+      // 槍騎兵: 長槍 + 馬蹄形
+      return (
+        <svg width={s} height={s} viewBox="0 0 48 48">
+          <line x1={c} y1={44} x2={c} y2={10} stroke={color} strokeWidth={3.5} strokeLinecap="round" />
+          <polygon points={`${c},3 ${c - 7},16 ${c},13 ${c + 7},16`} fill={color} />
+          <path d="M16 36 Q16 44 24 44 Q32 44 32 36" fill="none" stroke={color} strokeWidth={2} strokeOpacity={0.6} />
+        </svg>
+      );
+
+    case 'ranger':
+      // 神射手: 弓 + 三矢
+      return (
+        <svg width={s} height={s} viewBox="0 0 48 48">
+          <path d="M12 6 Q6 24 12 42" fill="none" stroke={color} strokeWidth={3} strokeLinecap="round" />
+          <line x1={12} y1={6} x2={12} y2={42} stroke={color} strokeWidth={1.5} strokeOpacity={0.4} />
+          <line x1={12} y1={18} x2={38} y2={16} stroke={color} strokeWidth={2} strokeLinecap="round" />
+          <polygon points="38,16 31,12 31,20" fill={color} />
+          <line x1={12} y1={24} x2={38} y2={24} stroke={color} strokeWidth={2} strokeLinecap="round" />
+          <polygon points="38,24 31,20 31,28" fill={color} />
+          <line x1={12} y1={30} x2={38} y2={32} stroke={color} strokeWidth={2} strokeLinecap="round" />
+          <polygon points="38,32 31,28 31,36" fill={color} />
+        </svg>
+      );
+
+    case 'sage':
+      // 賢者: 大きな星と魔法陣
+      return (
+        <svg width={s} height={s} viewBox="0 0 48 48">
+          <circle cx={c} cy={c} r={20} fill="none" stroke={color} strokeWidth={1.5} strokeOpacity={0.4} />
+          <polygon points="24,4 27,14 37,14 29,20 32,30 24,24 16,30 19,20 11,14 21,14" fill={color} fillOpacity={0.9} />
+          <circle cx={c} cy={c} r={5} fill={color} fillOpacity={0.5} />
+          <circle cx={c} cy={8} r={2} fill={color} fillOpacity={0.6} />
+          <circle cx={40} cy={c} r={2} fill={color} fillOpacity={0.6} />
+          <circle cx={8} cy={c} r={2} fill={color} fillOpacity={0.6} />
+        </svg>
+      );
+
     default:
       return (
         <svg width={s} height={s} viewBox="0 0 48 48">

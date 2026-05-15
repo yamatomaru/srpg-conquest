@@ -65,8 +65,8 @@ export function decideAIUnitAction(
   if (!unit.usedSkill && !unit.hasActed) {
     const jobId = ch.jobId;
 
-    // 魔術師: 射程内に敵2体以上 → 全体魔法（通常攻撃の代わりに最優先）
-    if (jobId === 'mage') {
+    // 魔術師 / 賢者: 射程内に敵2体以上 → 全体魔法 / 大魔法（最優先）
+    if (jobId === 'mage' || jobId === 'sage') {
       const inRange = enemies.filter((e) => {
         const d = manhattan(unit.position, e.position);
         return d >= 1 && d <= ch.range;
@@ -76,8 +76,8 @@ export function decideAIUnitAction(
       }
     }
 
-    // 弓師: 射程内に敵がいれば連射（2回攻撃 > 1回攻撃）
-    if (jobId === 'archer') {
+    // 弓師 / 神射手: 射程内に敵がいれば連射 / 三連射
+    if (jobId === 'archer' || jobId === 'ranger') {
       const targets = getAttackTargets(unit, ch, battle.units);
       if (targets.length > 0) {
         const target = battle.units
@@ -87,8 +87,8 @@ export function decideAIUnitAction(
       }
     }
 
-    // 騎士: 射程内に敵がいれば二連撃
-    if (jobId === 'knight') {
+    // 騎士 / 勇者: 射程内に敵がいれば二連撃 / 三連撃
+    if (jobId === 'knight' || jobId === 'hero') {
       const targets = getAttackTargets(unit, ch, battle.units);
       if (targets.length > 0) {
         const target = battle.units
@@ -107,10 +107,12 @@ export function decideAIUnitAction(
     }
 
     // 槍士: 通常射程外・突撃射程内（range+1）の敵 → 突撃
-    if (jobId === 'spearman') {
+    // 槍騎兵: 騎馬突撃射程内（range+2）
+    if (jobId === 'spearman' || jobId === 'lancer') {
+      const extRange = jobId === 'lancer' ? 2 : 1;
       const chargeOnly = enemies.filter((e) => {
         const d = manhattan(unit.position, e.position);
-        return d === ch.range + 1; // 通常攻撃不可・突撃のみ届く距離
+        return d > ch.range && d <= ch.range + extRange;
       });
       if (chargeOnly.length > 0) {
         const target = chargeOnly.sort((a, b) => a.currentHp - b.currentHp)[0];
@@ -118,8 +120,8 @@ export function decideAIUnitAction(
       }
     }
 
-    // 盾士: HP が60%未満なら庇護の構え
-    if (jobId === 'shielder' && unit.currentHp < ch.maxHp * 0.6) {
+    // 盾士 / 聖騎士: HP が60%未満なら庇護の構え / 聖護の構え
+    if ((jobId === 'shielder' || jobId === 'paladin') && unit.currentHp < ch.maxHp * 0.6) {
       return { type: 'skill', unitId: unit.characterId };
     }
 
