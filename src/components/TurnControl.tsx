@@ -96,6 +96,10 @@ export default function TurnControl() {
             onClick={() => togglePanel('achievements')}
             style={{ ...btnStyle(ui.activePanel === 'achievements' ? '#92400e' : '#374151') }}
             title="実績">🏆</button>
+          <button
+            onClick={() => togglePanel('wallet')}
+            style={{ ...btnStyle(ui.activePanel === 'wallet' ? '#d97706' : '#374151') }}
+            title="MCH Verseヒーロー連携">⛓ MCH</button>
           {!isMobile && <div style={{ width: 1, background: '#374151', alignSelf: 'stretch', margin: '0 4px' }} />}
           <button
             onClick={() => setShowSavePanel(true)}

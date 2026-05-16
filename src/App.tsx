@@ -30,6 +30,7 @@ import AchievementToast from './components/AchievementToast';
 import TerrainLegend from './components/TerrainLegend';
 import DomesticPanel from './components/DomesticPanel';
 import ClassChangePanel from './components/ClassChangePanel';
+import WalletPanel from './components/WalletPanel';
 import Tutorial, { shouldShowTutorial } from './components/Tutorial';
 
 export default function App() {
@@ -121,6 +122,7 @@ export default function App() {
       {ui.activePanel === 'achievements' && <AchievementsPanel />}
       {ui.activePanel === 'domestic' && <DomesticPanel />}
       {ui.activePanel === 'classChange' && <ClassChangePanel onClose={() => togglePanel('classChange')} />}
+      {ui.activePanel === 'wallet' && <WalletPanel onClose={() => togglePanel('wallet')} />}
       <AchievementToast />
     </div>
   );
