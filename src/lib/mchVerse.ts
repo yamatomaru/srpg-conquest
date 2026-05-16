@@ -142,19 +142,24 @@ export async function fetchHeroesByAddress(address: string): Promise<MchHero[]> 
     `${BLOCKSCOUT_API}/tokens/${HERO_CONTRACT}/instances?holder_address_hash=${address}`;
 
   while (url) {
-    const res = await fetch(url);
+    const res: Response = await fetch(url);
     if (!res.ok) throw new Error(`Blockscout API エラー: ${res.status}`);
-    const data: { items: BlockscoutInstance[]; next_page_params: Record<string, string> | null } =
-      await res.json();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data: any = await res.json();
 
-    for (const item of data.items) {
+    const items: BlockscoutInstance[] = Array.isArray(data.items) ? data.items : [];
+    for (const item of items) {
       const hero = parseBlockscoutInstance(item);
       if (hero) heroes.push(hero);
     }
 
     // ページネーション
-    if (data.next_page_params) {
-      const params = new URLSearchParams(data.next_page_params as Record<string, string>);
+    if (data.next_page_params && typeof data.next_page_params === 'object') {
+      const params: URLSearchParams = new URLSearchParams(
+        Object.fromEntries(
+          Object.entries(data.next_page_params as Record<string, unknown>).map(([k, v]) => [k, String(v)])
+        )
+      );
       url = `${BLOCKSCOUT_API}/tokens/${HERO_CONTRACT}/instances?holder_address_hash=${address}&${params}`;
     } else {
       url = null;
@@ -164,17 +169,36 @@ export async function fetchHeroesByAddress(address: string): Promise<MchHero[]> 
   return heroes;
 }
 
+/**
+ * attributes を統一的に扱うヘルパー。
+ * 配列形式: [{trait_type:"HP", value:465}, ...]
+ * オブジェクト形式: {"HP": 465, "Physical": 140, ...}
+ * のどちらでも動作する。
+ */
+function normalizeAttributes(raw: unknown): MchHeroAttribute[] {
+  if (Array.isArray(raw)) return raw as MchHeroAttribute[];
+  if (raw && typeof raw === 'object') {
+    return Object.entries(raw as Record<string, unknown>).map(([trait_type, value]) => ({
+      trait_type,
+      value: value as string | number,
+    }));
+  }
+  return [];
+}
+
 /** Blockscout インスタンスを MchHero に変換 */
 function parseBlockscoutInstance(item: BlockscoutInstance): MchHero | null {
   const meta = item.metadata;
   if (!meta) return null;
 
+  const attributes = normalizeAttributes(meta.attributes);
+
   const attr = (trait: string): number => {
-    const found = meta.attributes?.find((a) => a.trait_type === trait);
+    const found = attributes.find((a) => a.trait_type === trait);
     return found ? Number(found.value) : 0;
   };
   const attrStr = (trait: string): string => {
-    const found = meta.attributes?.find((a) => a.trait_type === trait);
+    const found = attributes.find((a) => a.trait_type === trait);
     return found ? String(found.value) : '';
   };
 
