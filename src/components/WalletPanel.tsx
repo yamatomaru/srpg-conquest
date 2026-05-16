@@ -120,6 +120,11 @@ export default function WalletPanel({ onClose }: Props) {
     setStep('loading');
     try {
       const list = await fetchHeroesByAddress(addr);
+      // ヒーロー0体 = ウォレット未接続と同じ扱い → そのまま閉じる
+      if (list.length === 0) {
+        onClose();
+        return;
+      }
       setHeroes(list);
       setStep('select');
     } catch (e: any) {
@@ -292,35 +297,8 @@ export default function WalletPanel({ onClose }: Props) {
               </div>
             </div>
 
-            {heroes.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '32px 0', color: '#6b7280', fontSize: 14 }}>
-                <div style={{ fontSize: 36, marginBottom: 12 }}>🗡️</div>
-                <div style={{ marginBottom: 8 }}>このウォレットにヒーローNFTが見つかりませんでした。</div>
-                <div style={{ fontSize: 12, color: '#4b5563', marginBottom: 20 }}>
-                  ヒーローなしでも通常キャラクターでプレイできます。
-                </div>
-                <button
-                  onClick={onClose}
-                  style={{
-                    padding: '10px 28px', background: '#1d4ed8', color: '#fff',
-                    border: 'none', borderRadius: 6, cursor: 'pointer',
-                    fontSize: 14, fontWeight: 'bold', marginBottom: 12,
-                  }}
-                >
-                  通常キャラでプレイ続行
-                </button>
-                <br />
-                <a
-                  href="https://www.mycryptoheroes.net/"
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{ color: '#60a5fa', fontSize: 12 }}
-                >
-                  MCH でヒーローを入手する →
-                </a>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {/* ヒーロー一覧（0体の場合はloadHeroes内でonCloseが呼ばれるためここには到達しない） */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {heroes.map((hero) => {
                   const char: Character = mchHeroToCharacter(hero);
                   const job = JOBS[char.jobId];
@@ -437,7 +415,6 @@ export default function WalletPanel({ onClose }: Props) {
                   );
                 })}
               </div>
-            )}
 
             {/* 注意書き */}
             <div style={{ marginTop: 16, fontSize: 11, color: '#4b5563', lineHeight: 1.6 }}>
