@@ -90,7 +90,7 @@ export interface InvasionPending {
   toTerritoryId: string;
 }
 
-export type ActivePanel = 'none' | 'troops' | 'diplomacy' | 'mercenary' | 'objectives' | 'simulation' | 'shop' | 'achievements' | 'domestic' | 'classChange';
+export type ActivePanel = 'none' | 'troops' | 'diplomacy' | 'mercenary' | 'objectives' | 'simulation' | 'shop' | 'achievements' | 'domestic' | 'classChange' | 'wallet';
 
 // ============================================================
 // 内政・建築

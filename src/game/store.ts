@@ -233,6 +233,8 @@ interface GameActions {
   buildStructure: (territoryId: string, buildingType: import('./types').BuildingType) => void;
   // クラスチェンジ
   classChange: (charId: string) => void;
+  // MCH Verse ヒーロー追加
+  addMchHero: (character: Character) => void;
   // 実績
   dismissAchievementToast: () => void;
   _updateStats: (patch: Partial<GameState['playerStats']>) => void;
@@ -2050,6 +2052,24 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       return {
         nations: { ...state.nations, [player.id]: { ...player, gold: player.gold - def.cost } },
         characters: { ...state.characters, [charId]: newCh },
+      };
+    }),
+
+  addMchHero: (character) =>
+    set((state) => {
+      const player = Object.values(state.nations).find((n) => n.isPlayer);
+      if (!player) return state;
+      // 重複追加防止
+      if (player.characterIds.includes(character.id)) return state;
+      return {
+        characters: { ...state.characters, [character.id]: character },
+        nations: {
+          ...state.nations,
+          [player.id]: {
+            ...player,
+            characterIds: [...player.characterIds, character.id],
+          },
+        },
       };
     }),
 
