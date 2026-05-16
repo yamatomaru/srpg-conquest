@@ -1,9 +1,18 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useGameStore } from '../game/store';
 import { NATIONS } from '../data/nations';
 import { CHARACTERS } from '../data/characters';
 import { useIsMobile } from '../hooks/useIsMobile';
 import RandomMapSetup from './RandomMapSetup';
+import {
+  isMetaMaskAvailable,
+  connectWallet,
+  getChainId,
+  switchToMchVerse,
+  fetchHeroesByAddress,
+  mchHeroToCharacter,
+  MCH_CHAIN_ID,
+} from '../lib/mchVerse';
 
 const FACTION_ICON: Record<string, string> = {
   '朱雀': '🦅', '青龍': '🐉', '玄武': '🐢', '黄竜': '🌟', '白虎': '🐯',
@@ -46,11 +55,48 @@ function getNationComposition(nationId: string): Record<string, number> {
   return counts;
 }
 
+type WalletStatus = 'idle' | 'connecting' | 'connected' | 'error';
+
 export default function NationSelect() {
-  const { selectNation, openCampaignSelect, openMapEditor } = useGameStore();
+  const { selectNation, openCampaignSelect, openMapEditor, setPendingMchHeroes, pendingMchHeroes } = useGameStore();
   const isMobile = useIsMobile();
   const [showRandomMap, setShowRandomMap] = useState(false);
+  const [walletStatus, setWalletStatus] = useState<WalletStatus>('idle');
+  const [walletAddress, setWalletAddress] = useState('');
+  const [walletError, setWalletError] = useState('');
   const nations = Object.values(NATIONS);
+
+  const handleWalletConnect = useCallback(async () => {
+    if (!isMetaMaskAvailable()) {
+      setWalletError('MetaMask が見つかりません');
+      setWalletStatus('error');
+      return;
+    }
+    setWalletStatus('connecting');
+    setWalletError('');
+    try {
+      const addr = await connectWallet();
+      const chainId = await getChainId();
+      if (chainId !== MCH_CHAIN_ID) {
+        await switchToMchVerse();
+      }
+      const heroes = await fetchHeroesByAddress(addr);
+      const chars = heroes.map(mchHeroToCharacter);
+      setPendingMchHeroes(chars);
+      setWalletAddress(addr);
+      setWalletStatus('connected');
+    } catch (e: any) {
+      setWalletError(e?.message ?? '接続に失敗しました');
+      setWalletStatus('error');
+    }
+  }, [setPendingMchHeroes]);
+
+  const handleDisconnect = useCallback(() => {
+    setPendingMchHeroes([]);
+    setWalletAddress('');
+    setWalletStatus('idle');
+    setWalletError('');
+  }, [setPendingMchHeroes]);
 
   return (
     <div
@@ -62,6 +108,74 @@ export default function NationSelect() {
     >
       <div style={{ textAlign: 'center' }}>
         <h1 style={{ fontSize: 36, margin: 0, color: '#f9fafb', letterSpacing: 4 }}>MyCryptoConquest</h1>
+      </div>
+
+      {/* MCH Verse ウォレット連携バー */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', justifyContent: 'center',
+        background: '#1f2937', border: '1px solid #374151', borderRadius: 10,
+        padding: '10px 20px', maxWidth: 700, width: '90%',
+      }}>
+        <span style={{ fontSize: 13, color: '#9ca3af' }}>⛓ MCH Verse</span>
+
+        {walletStatus === 'idle' && (
+          <button
+            onClick={handleWalletConnect}
+            style={{
+              padding: '6px 18px', background: '#d97706', color: '#111',
+              border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 'bold',
+            }}
+          >
+            ウォレット接続
+          </button>
+        )}
+
+        {walletStatus === 'connecting' && (
+          <span style={{ fontSize: 12, color: '#f59e0b' }}>接続中…</span>
+        )}
+
+        {walletStatus === 'connected' && (
+          <>
+            <span style={{ fontSize: 12, color: '#22c55e' }}>● 接続済み</span>
+            <span style={{ fontSize: 11, color: '#9ca3af', fontFamily: 'monospace' }}>
+              {walletAddress.slice(0, 6)}…{walletAddress.slice(-4)}
+            </span>
+            {pendingMchHeroes.length > 0 ? (
+              <span style={{
+                fontSize: 12, color: '#f0c040', fontWeight: 'bold',
+                background: '#f0c04022', borderRadius: 6, padding: '2px 10px',
+              }}>
+                ヒーロー {pendingMchHeroes.length} 体 → 国家選択後に参戦
+              </span>
+            ) : (
+              <span style={{ fontSize: 12, color: '#6b7280' }}>ヒーローなし</span>
+            )}
+            <button
+              onClick={handleDisconnect}
+              style={{
+                padding: '3px 10px', background: 'none', color: '#6b7280',
+                border: '1px solid #374151', borderRadius: 4, cursor: 'pointer', fontSize: 11,
+              }}
+            >
+              解除
+            </button>
+          </>
+        )}
+
+        {walletStatus === 'error' && (
+          <>
+            <span style={{ fontSize: 12, color: '#f87171' }}>⚠ {walletError}</span>
+            <button
+              onClick={handleWalletConnect}
+              style={{
+                padding: '4px 12px', background: '#374151', color: '#e5e7eb',
+                border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11,
+              }}
+            >
+              再試行
+            </button>
+          </>
+        )}
       </div>
 
       {/* モード選択 */}

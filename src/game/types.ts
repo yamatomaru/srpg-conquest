@@ -392,4 +392,5 @@ export interface GameState {
   unlockedAchievementIds: string[];
   pendingAchievementToasts: string[];  // 解除されたが未表示のID
   currentGameLosses: number;           // 今回のゲームでの敗北回数（no_loss判定用）
+  pendingMchHeroes: Character[];       // ゲーム開始前にウォレット連携で取得したヒーロー（国家選択後に自動追加）
 }
