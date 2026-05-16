@@ -11,7 +11,7 @@ import type { Character, JobId } from '../game/types';
 // ─── 定数 ───────────────────────────────────────────────────────────────────
 
 export const MCH_CHAIN_ID = 29548;
-export const MCH_CHAIN_ID_HEX = '0x739c';
+export const MCH_CHAIN_ID_HEX = '0x736c';
 
 export const MCH_NETWORK = {
   chainId: MCH_CHAIN_ID_HEX,
