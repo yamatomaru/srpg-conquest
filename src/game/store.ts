@@ -560,8 +560,9 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         Object.entries(state.nations).map(([k, n]) => [k, { ...n, isPlayer: k === nationId }])
       );
       const playerFaction = newNations[nationId].faction;
-      // pendingMchHeroes をプレイヤー部隊に自動追加
+      // pendingMchHeroes をプレイヤー部隊 + 本拠地に自動追加
       const newChars = { ...state.characters };
+      const newTerritories = { ...state.territories };
       const heroIds: string[] = [];
       for (const hero of state.pendingMchHeroes) {
         newChars[hero.id] = hero;
@@ -572,12 +573,21 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
           ...newNations[nationId],
           characterIds: [...newNations[nationId].characterIds, ...heroIds],
         };
+        // 本拠地のgarrisonに追加
+        const capitalId = newNations[nationId].capitalTerritoryId;
+        if (capitalId && newTerritories[capitalId]) {
+          newTerritories[capitalId] = {
+            ...newTerritories[capitalId],
+            garrisonIds: [...newTerritories[capitalId].garrisonIds, ...heroIds],
+          };
+        }
       }
       return {
         phase: 'strategic' as const,
         currentNationId: nationId,
         nations: newNations,
         characters: newChars,
+        territories: newTerritories,
         relations: buildRelations(newNations as typeof NATIONS, nationId),
         mercPool: filterMercPool(pickMercPool(1, playerFaction), newChars),
         pendingMchHeroes: [],
@@ -590,9 +600,10 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       Object.entries(nations).map(([k, n]) => [k, { ...n, isPlayer: k === nationId }])
     );
     const playerFaction = newNations[nationId].faction;
-    // pendingMchHeroes をプレイヤー部隊に自動追加
+    // pendingMchHeroes をプレイヤー部隊 + 本拠地に自動追加
     const pending = get().pendingMchHeroes;
     const mergedChars = { ...characters };
+    const mergedTerritories = { ...territories };
     if (pending.length > 0) {
       const heroIds: string[] = [];
       for (const hero of pending) {
@@ -603,13 +614,20 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         ...newNations[nationId],
         characterIds: [...newNations[nationId].characterIds, ...heroIds],
       };
+      const capitalId = newNations[nationId].capitalTerritoryId;
+      if (capitalId && mergedTerritories[capitalId]) {
+        mergedTerritories[capitalId] = {
+          ...mergedTerritories[capitalId],
+          garrisonIds: [...mergedTerritories[capitalId].garrisonIds, ...heroIds],
+        };
+      }
     }
     set({
       phase: 'strategic' as const,
       month: 1,
       currentNationId: nationId,
       nations: newNations,
-      territories,
+      territories: mergedTerritories,
       characters: mergedChars,
       battle: null,
       winnerId: null,

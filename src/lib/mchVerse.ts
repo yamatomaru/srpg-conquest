@@ -7,6 +7,7 @@
 
 import { BrowserProvider } from 'ethers';
 import type { Character, JobId } from '../game/types';
+import { MCH_HERO_NAMES_JA } from '../data/mchHeroNames';
 
 // ─── 定数 ───────────────────────────────────────────────────────────────────
 
@@ -367,9 +368,12 @@ export function mchHeroToCharacter(hero: MchHero): Character {
 
   const charId = `mch-${hero.tokenId}`;
 
+  // 日本語名を優先、なければ英語名
+  const displayName = MCH_HERO_NAMES_JA[hero.heroTypeId] ?? hero.heroTypeName;
+
   return {
     id: charId,
-    name: hero.heroTypeName,
+    name: displayName,
     jobId,
     level,
     exp: 0,
