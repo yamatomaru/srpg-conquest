@@ -163,6 +163,7 @@ const getInitialState = (): GameState => {
     unlockedAchievementIds: savedAch.unlockedIds,
     pendingAchievementToasts: [],
     currentGameLosses: 0,
+    pendingMchHeroes: [],
   };
 };
 
@@ -233,8 +234,10 @@ interface GameActions {
   buildStructure: (territoryId: string, buildingType: import('./types').BuildingType) => void;
   // クラスチェンジ
   classChange: (charId: string) => void;
-  // MCH Verse ヒーロー追加
+  // MCH Verse ヒーロー追加（ゲーム中）
   addMchHero: (character: Character) => void;
+  // MCH Verse ヒーロー事前登録（タイトル画面 → 国家選択後に自動追加）
+  setPendingMchHeroes: (heroes: Character[]) => void;
   // 実績
   dismissAchievementToast: () => void;
   _updateStats: (patch: Partial<GameState['playerStats']>) => void;
@@ -557,12 +560,37 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         Object.entries(state.nations).map(([k, n]) => [k, { ...n, isPlayer: k === nationId }])
       );
       const playerFaction = newNations[nationId].faction;
+      // pendingMchHeroes をプレイヤー部隊 + 本拠地に自動追加
+      const newChars = { ...state.characters };
+      const newTerritories = { ...state.territories };
+      const heroIds: string[] = [];
+      for (const hero of state.pendingMchHeroes) {
+        newChars[hero.id] = hero;
+        heroIds.push(hero.id);
+      }
+      if (heroIds.length > 0) {
+        newNations[nationId] = {
+          ...newNations[nationId],
+          characterIds: [...newNations[nationId].characterIds, ...heroIds],
+        };
+        // 本拠地のgarrisonに追加
+        const capitalId = newNations[nationId].capitalTerritoryId;
+        if (capitalId && newTerritories[capitalId]) {
+          newTerritories[capitalId] = {
+            ...newTerritories[capitalId],
+            garrisonIds: [...newTerritories[capitalId].garrisonIds, ...heroIds],
+          };
+        }
+      }
       return {
         phase: 'strategic' as const,
         currentNationId: nationId,
         nations: newNations,
+        characters: newChars,
+        territories: newTerritories,
         relations: buildRelations(newNations as typeof NATIONS, nationId),
-        mercPool: filterMercPool(pickMercPool(1, playerFaction), state.characters),
+        mercPool: filterMercPool(pickMercPool(1, playerFaction), newChars),
+        pendingMchHeroes: [],
       };
     }),
 
@@ -572,13 +600,35 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       Object.entries(nations).map(([k, n]) => [k, { ...n, isPlayer: k === nationId }])
     );
     const playerFaction = newNations[nationId].faction;
+    // pendingMchHeroes をプレイヤー部隊 + 本拠地に自動追加
+    const pending = get().pendingMchHeroes;
+    const mergedChars = { ...characters };
+    const mergedTerritories = { ...territories };
+    if (pending.length > 0) {
+      const heroIds: string[] = [];
+      for (const hero of pending) {
+        mergedChars[hero.id] = hero;
+        heroIds.push(hero.id);
+      }
+      newNations[nationId] = {
+        ...newNations[nationId],
+        characterIds: [...newNations[nationId].characterIds, ...heroIds],
+      };
+      const capitalId = newNations[nationId].capitalTerritoryId;
+      if (capitalId && mergedTerritories[capitalId]) {
+        mergedTerritories[capitalId] = {
+          ...mergedTerritories[capitalId],
+          garrisonIds: [...mergedTerritories[capitalId].garrisonIds, ...heroIds],
+        };
+      }
+    }
     set({
       phase: 'strategic' as const,
       month: 1,
       currentNationId: nationId,
       nations: newNations,
-      territories,
-      characters,
+      territories: mergedTerritories,
+      characters: mergedChars,
       battle: null,
       winnerId: null,
       isAIThinking: false,
@@ -587,7 +637,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       actedCharIds: [],
       relations: buildRelations(newNations as typeof NATIONS, nationId),
       objectives: [...INITIAL_OBJECTIVES],
-      mercPool: filterMercPool(pickMercPool(1, playerFaction), characters),
+      mercPool: filterMercPool(pickMercPool(1, playerFaction), mergedChars),
       mercDurations: {},
       currentEvent: null,
       recruitOffer: null,
@@ -596,6 +646,7 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
       campaignProgress: null,
       campaignScenario: null,
       ui: { ...INITIAL_UI },
+      pendingMchHeroes: [],
     });
   },
 
@@ -2054,6 +2105,9 @@ export const useGameStore = create<GameState & GameActions>((set, get) => ({
         characters: { ...state.characters, [charId]: newCh },
       };
     }),
+
+  setPendingMchHeroes: (heroes) =>
+    set({ pendingMchHeroes: heroes }),
 
   addMchHero: (character) =>
     set((state) => {
