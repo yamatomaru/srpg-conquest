@@ -193,40 +193,54 @@ function parseBlockscoutInstance(item: BlockscoutInstance): MchHero | null {
 
   const attributes = normalizeAttributes(meta.attributes);
 
-  const attr = (trait: string): number => {
-    const found = attributes.find((a) => a.trait_type === trait);
-    return found ? Number(found.value) : 0;
+  // 大文字小文字を問わず属性を検索
+  const attr = (...traits: string[]): number => {
+    for (const trait of traits) {
+      const tl = trait.toLowerCase();
+      const found = attributes.find((a) => a.trait_type.toLowerCase() === tl);
+      if (found) return Number(found.value);
+    }
+    return 0;
   };
-  const attrStr = (trait: string): string => {
-    const found = attributes.find((a) => a.trait_type === trait);
-    return found ? String(found.value) : '';
+  const attrStr = (...traits: string[]): string => {
+    for (const trait of traits) {
+      const tl = trait.toLowerCase();
+      const found = attributes.find((a) => a.trait_type.toLowerCase() === tl);
+      if (found && found.value) return String(found.value);
+    }
+    return '';
   };
 
-  const heroTypeId = meta.extra_data?.hero_type_id ?? 0;
-  const typeName = attrStr('Type') || meta.name.replace(/^MCH Hero: #\d+ Lv\.\d+ /, '');
+  // heroTypeId: extra_data優先 → tokenIdから算出
+  const heroTypeId =
+    meta.extra_data?.hero_type_id ?? Math.floor(parseInt(item.id, 10) / 10000);
+
+  // ヒーロー名: type_name → Type → type → tokenIdフォールバック
+  const typeName = attrStr('type_name', 'Type', 'type') || `Hero #${item.id}`;
+
+  // 画像URL: instance直下 → heroTypeIdから生成
+  const imageUrl =
+    item.image_url ||
+    `https://www.mycryptoheroes.net/images/heroes/2000/${heroTypeId}.png`;
 
   return {
     tokenId: item.id,
     name: meta.name,
     heroTypeName: typeName,
     heroTypeId,
-    level: attr('Level'),
-    rarity: attrStr('Rarity'),
-    hp: attr('HP'),
-    physical: attr('Physical'),
-    intelligence: attr('Intelligence'),
-    agility: attr('Agility'),
-    activeSkillId: meta.extra_data?.active_skill_id ?? 0,
+    level:        attr('lv', 'Level'),
+    rarity:       attrStr('rarity', 'Rarity'),
+    hp:           attr('hp', 'HP'),
+    physical:     attr('phy', 'Physical'),
+    intelligence: attr('int', 'Intelligence'),
+    agility:      attr('agi', 'Agility'),
+    activeSkillId:  meta.extra_data?.active_skill_id ?? 0,
     passiveSkillId: meta.extra_data?.passive_skill_id ?? 0,
-    imageUrl:
-      item.image_url ??
-      (heroTypeId > 0
-        ? `https://www.mycryptoheroes.net/images/heroes/2000/${heroTypeId}.png`
-        : ''),
+    imageUrl,
     externalUrl: item.external_app_url ?? `https://www.mycryptoheroes.net/heroes/${item.id}`,
     stamina: {
       current: meta.extra_data?.current_stamina ?? 0,
-      max: meta.extra_data?.max_stamina ?? 0,
+      max:     meta.extra_data?.max_stamina ?? 0,
     },
     ce: meta.extra_data?.ce ?? 0,
   };
@@ -235,26 +249,86 @@ function parseBlockscoutInstance(item: BlockscoutInstance): MchHero | null {
 // ─── スタット変換 ──────────────────────────────────────────────────────────
 
 /**
- * MCH ヒーローのレアリティからゲームジョブを決定
- *   Legendary  → Tier2ジョブ（CE上位でpaladin/hero/sage、中位lancer/ranger）
- *   Epic/Rare  → Tier1ジョブ（warrior/mage/spearman/archer/knight）
- *   Common以下 → Tier1ジョブ（shielder/warrior/spearman）
+ * ヒーロー名キーワード → ジョブ対応表
+ * 名前に含まれるキーワードで優先判定、マッチしない場合はステータスでフォールバック
+ */
+const NAME_JOB_RULES: Array<{ keywords: string[]; base: JobId; legendary: JobId }> = [
+  // 弓師・神射手
+  { keywords: [
+      'YATAGARASU', 'TELL', 'WILLIAM', 'ROBIN HOOD', 'ARTEMIS', 'ATALANTE',
+      'ARASH', 'HOU YI', 'NASU', 'YOSHITSUNE', 'ARCHER', 'BOW',
+    ], base: 'archer', legendary: 'ranger' },
+  // 魔術師・賢者（科学者・錬金術師・魔法使い）
+  { keywords: [
+      'GALILEO', 'TESLA', 'EINSTEIN', 'NEWTON', 'DARWIN', 'COPERNICUS',
+      'ARISTOTLE', 'ARCHIMEDES', 'PYTHAGORAS', 'EUCLID', 'EULER',
+      'MERLIN', 'NOSTRADAMUS', 'PARACELSUS', 'FLAMEL', 'ALCHEMIST',
+      'ZHUGE', 'KONGMING', 'DA VINCI', 'DAVINCI', 'MAGE', 'WIZARD', 'WITCH',
+      'MOZART', 'BACH', 'ALCHEMY', 'SCHOLAR', 'HYPATIA', 'AVICENNA',
+    ], base: 'mage', legendary: 'sage' },
+  // 僧侶（聖職者・癒し手）
+  { keywords: [
+      'FLORENCE', 'NIGHTINGALE', 'JOAN', 'JEANNE', 'HILDEGARD',
+      'PRIEST', 'MONK', 'BISHOP', 'BUDDHA', 'BUDDA', 'SAINT',
+      'ANGEL', 'HEAL', 'CLARA', 'TERESA',
+    ], base: 'priest', legendary: 'paladin' },
+  // 槍士・槍騎兵
+  { keywords: [
+      'LONGINUS', 'SANADA', 'HONDA', 'YUKIMURA', 'TADAKATSU',
+      'ACHILLES', 'DIOMEDES', 'SPEAR', 'LANCE', 'OTANI',
+    ], base: 'spearman', legendary: 'lancer' },
+  // 盾士・聖騎士（守護者・重装）
+  { keywords: [
+      'AJAX', 'LEONIDAS', 'SHIELD', 'GUARD', 'FORTRESS',
+      'GENBU', 'SUSANOO',
+    ], base: 'shielder', legendary: 'paladin' },
+  // 騎士（将軍・武将・重騎兵）
+  { keywords: [
+      'SCIPIO', 'CAESAR', 'NAPOLEON', 'ALEXANDER', 'CHARLEMAGNE',
+      'ARTHUR', 'CRUSADER', 'TEMPLAR', 'KNIGHT',
+      'NOBUNAGA', 'ODA', 'AKECHI', 'MITSUHIDE', 'CAO CAO', 'CAOCAO',
+      'KHALID', 'HANNIBAL', 'SALADIN', 'WELLINGTON', 'MONTGOMERY',
+    ], base: 'knight', legendary: 'hero' },
+  // 戦士・勇者（剣士・闘士）
+  { keywords: [
+      'MUSASHI', 'MIYAMOTO', 'KOJIRO', 'SAMURAI', 'GLADIATOR',
+      'LU BU', 'LUBU', 'GUAN YU', 'GUANYU', 'BERSERKER', 'BEOWULF',
+      'HERCULES', 'HERACLES', 'VLAD', 'SPARTACUS', 'WARRIOR',
+      'UESUGI', 'KENSHIN', 'TAKEDA', 'SHINGEN',
+    ], base: 'warrior', legendary: 'hero' },
+];
+
+/**
+ * ヒーロー名とステータスからジョブを決定
+ * 1. 名前キーワード照合（優先）
+ * 2. ステータス比較（フォールバック）
  */
 function heroToJobId(hero: MchHero): JobId {
-  const isPhysical = hero.physical >= hero.intelligence;
-  const isMagical   = hero.intelligence > hero.physical;
-  const isRanged    = hero.agility >= 80;
+  const nameUpper = hero.heroTypeName.toUpperCase();
+  const isLegendary = hero.rarity === 'Legendary';
 
-  if (hero.rarity === 'Legendary') {
-    if (isMagical) return 'sage';
-    if (isRanged)  return 'ranger';
-    if (hero.physical >= 130) return 'hero';
+  // 名前キーワードで判定
+  for (const rule of NAME_JOB_RULES) {
+    if (rule.keywords.some((kw) => nameUpper.includes(kw))) {
+      return isLegendary ? rule.legendary : rule.base;
+    }
+  }
+
+  // キーワード不一致 → ステータスで判定
+  const isPhysical = hero.physical >= hero.intelligence;
+  const isMagical  = hero.intelligence > hero.physical;
+  const isRanged   = hero.agility >= 80;
+
+  if (isLegendary) {
+    if (isMagical)              return 'sage';
+    if (isRanged)               return 'ranger';
+    if (hero.physical >= 130)   return 'hero';
     return 'paladin';
   }
   if (hero.rarity === 'Epic') {
-    if (isMagical && isRanged) return 'mage';
-    if (isPhysical && isRanged) return 'archer';
-    if (isPhysical) return 'knight';
+    if (isMagical)   return 'mage';
+    if (isRanged)    return 'archer';
+    if (isPhysical)  return 'knight';
     return 'warrior';
   }
   // Rare / Common
@@ -307,6 +381,7 @@ export function mchHeroToCharacter(hero: MchHero): Character {
     mdef,
     mov,
     range,
+    imageUrl: hero.imageUrl || undefined,
   };
 }
 

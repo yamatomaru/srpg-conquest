@@ -90,8 +90,10 @@ export default function TroopsList() {
                     fontSize: 13,
                   }}
                 >
-                  <div style={{ width: 22, height: 22, borderRadius: 4, background: JOB_COLOR[ch.jobId] ?? '#6b7280', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#fff', fontWeight: 'bold' }}>
-                    {JOB_ABBR[ch.jobId] ?? '?'}
+                  <div style={{ width: 22, height: 22, borderRadius: 4, background: JOB_COLOR[ch.jobId] ?? '#6b7280', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#fff', fontWeight: 'bold', overflow: 'hidden', flexShrink: 0 }}>
+                    {ch.imageUrl ? (
+                      <img src={ch.imageUrl} alt={ch.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                    ) : (JOB_ABBR[ch.jobId] ?? '?')}
                   </div>
 
                   <div>

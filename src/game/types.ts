@@ -46,6 +46,7 @@ export interface Character {
   mov: number;
   range: number;
   spritePath?: string;
+  imageUrl?: string;   // MCH Verse ヒーロー画像URL
   // 装備スロット
   equippedWeaponId?: string;
   equippedArmorId?: string;
